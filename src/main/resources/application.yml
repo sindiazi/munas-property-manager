@@ -1,0 +1,77 @@
+spring:
+  application:
+    name: rental-property-manager
+
+  # ── Reactive R2DBC (PostgreSQL) ─────────────────────────────────────────
+  r2dbc:
+    url: r2dbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:rental_manager}
+    username: ${DB_USER:rental_user}
+    password: ${DB_PASS:rental_pass}
+    pool:
+      enabled: true
+      initial-size: 5
+      max-size: 20
+      max-idle-time: 30m
+
+  # ── Flyway (JDBC – schema migrations) ──────────────────────────────────
+  flyway:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:rental_manager}
+    user: ${DB_USER:rental_user}
+    password: ${DB_PASS:rental_pass}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # ── Codec / serialisation ───────────────────────────────────────────────
+  codec:
+    max-in-memory-size: 10MB
+
+# ── Actuator ─────────────────────────────────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# ── OpenAPI / Swagger UI ─────────────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+# ── Logging ──────────────────────────────────────────────────────────────
+logging:
+  level:
+    com.example.rentalmanager: DEBUG
+    org.springframework.r2dbc: DEBUG
+    io.r2dbc.postgresql.QUERY: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# ── Server ────────────────────────────────────────────────────────────────
+server:
+  port: 8080
+  netty:
+    connection-timeout: 10s
+
+---
+# ── Test profile ──────────────────────────────────────────────────────────
+spring:
+  config:
+    activate:
+      on-profile: test
+  r2dbc:
+    url: r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  flyway:
+    enabled: false
