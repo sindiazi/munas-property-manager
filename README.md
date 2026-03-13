@@ -1,0 +1,1 @@
+# munas-property-manager
