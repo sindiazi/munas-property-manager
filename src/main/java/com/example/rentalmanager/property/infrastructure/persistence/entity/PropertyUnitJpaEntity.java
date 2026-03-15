@@ -5,13 +5,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.relational.core.mapping.Table;
+import org.springframework.data.cassandra.core.mapping.Indexed;
+import org.springframework.data.cassandra.core.mapping.PrimaryKey;
+import org.springframework.data.cassandra.core.mapping.Table;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
-/** Spring Data R2DBC persistence entity for the {@code property_units} table. */
+/** Spring Data Cassandra persistence entity for the {@code property_units} table. */
 @Data
 @Builder
 @NoArgsConstructor
@@ -19,8 +20,9 @@ import java.util.UUID;
 @Table("property_units")
 public class PropertyUnitJpaEntity {
 
-    @Id
+    @PrimaryKey
     private UUID id;
+    @Indexed
     private UUID propertyId;
     private String unitNumber;
     private int bedrooms;
@@ -28,5 +30,6 @@ public class PropertyUnitJpaEntity {
     private double squareFootage;
     private BigDecimal monthlyRentAmount;
     private String currencyCode;
+    @Indexed
     private UnitStatus status;
 }

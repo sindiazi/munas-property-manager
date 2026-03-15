@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw clean:*)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && mvn clean package -DskipTests 2>&1 | tail -60)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && mvn clean package -DskipTests 2>&1 | grep -E \"\\(ERROR|WARNING|BUILD|INFO\\\\] ---\\)\" | tail -40)",
+      "Bash(java -version 2>&1)",
+      "Bash(mvn -version 2>&1)",
+      "Bash(JAVA_HOME=\"C:/Program Files/Java/jdk-25\" mvn -version 2>&1)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && JAVA_HOME=\"C:/Program Files/Java/jdk-25\" mvn clean package -DskipTests 2>&1 | grep -E \"\\(ERROR|WARNING.*error|BUILD|compiler.*error|\\\\[ERROR\\\\]\\)\" | grep -v \"restricted method\\\\|jansi\\\\|enable-native\" | tail -40)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && JAVA_HOME=\"C:/Program Files/Java/jdk-25\" mvn clean package -DskipTests -e 2>&1 | grep -A 30 \"ExceptionInInitializerError\" | head -40)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && JAVA_HOME=\"C:/Program Files/Java/jdk-25\" mvn dependency:resolve -Dartifact=org.projectlombok:lombok 2>&1 | grep \"lombok\" | head -5)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && JAVA_HOME=\"C:/Program Files/Java/jdk-25\" mvn versions:display-dependency-updates -Dincludes=org.projectlombok:lombok 2>&1 | grep -E \"lombok|->|available\" | head -10)",
+      "Bash(curl -s \"https://repo.maven.apache.org/maven2/org/projectlombok/lombok/maven-metadata.xml\" | grep -E \"<version>1\\\\.18\\\\.\" | tail -10)",
+      "Bash(curl -s \"https://repo.maven.apache.org/maven2/org/mapstruct/mapstruct/maven-metadata.xml\" | grep \"<version>1\\\\.\" | tail -5)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && JAVA_HOME=\"C:/Program Files/Java/jdk-25\" mvn clean package -DskipTests 2>&1 | grep -E \"\\(ERROR|\\\\[ERROR\\\\]|BUILD|WARNING.*error\\)\" | grep -v \"restricted method\\\\|jansi\\\\|enable-native\" | tail -30)",
+      "Bash(cd \"I:/Code/munas-property-manager\" && JAVA_HOME=\"C:/Program Files/Java/jdk-25\" mvn clean package -DskipTests 2>&1 | grep -E \"\\(\\\\[ERROR\\\\]|BUILD\\)\" | grep -v \"restricted method\\\\|jansi\\\\|enable-native\" | tail -30)",
+      "Bash(docker ps:*)",
+      "Bash(docker info:*)",
+      "Bash(docker context:*)",
+      "Bash(powershell -Command \"Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue | Select-Object Name,Id\" 2>&1)"
+    ]
+  }
+}

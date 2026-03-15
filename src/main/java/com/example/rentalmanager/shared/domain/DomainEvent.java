@@ -13,26 +13,7 @@ import java.util.UUID;
  * <p>Events are named in the past tense (e.g. {@code PropertyCreated},
  * {@code LeaseActivated}) and are immutable by design.
  */
-public sealed interface DomainEvent
-        permits
-        // property
-        com.example.rentalmanager.property.domain.event.PropertyCreatedEvent,
-        com.example.rentalmanager.property.domain.event.PropertyUnitAddedEvent,
-        com.example.rentalmanager.property.domain.event.UnitStatusChangedEvent,
-        // tenant
-        com.example.rentalmanager.tenant.domain.event.TenantRegisteredEvent,
-        com.example.rentalmanager.tenant.domain.event.TenantStatusChangedEvent,
-        // leasing
-        com.example.rentalmanager.leasing.domain.event.LeaseCreatedEvent,
-        com.example.rentalmanager.leasing.domain.event.LeaseActivatedEvent,
-        com.example.rentalmanager.leasing.domain.event.LeaseTerminatedEvent,
-        // payment
-        com.example.rentalmanager.payment.domain.event.PaymentCreatedEvent,
-        com.example.rentalmanager.payment.domain.event.PaymentReceivedEvent,
-        com.example.rentalmanager.payment.domain.event.PaymentOverdueEvent,
-        // maintenance
-        com.example.rentalmanager.maintenance.domain.event.MaintenanceRequestCreatedEvent,
-        com.example.rentalmanager.maintenance.domain.event.MaintenanceRequestStatusChangedEvent {
+public interface DomainEvent {
 
     /** Globally unique event identifier. */
     UUID eventId();
