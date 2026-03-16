@@ -5,8 +5,10 @@ import com.example.rentalmanager.tenant.application.dto.command.RegisterTenantCo
 import com.example.rentalmanager.tenant.application.dto.command.UpdateTenantCommand;
 import com.example.rentalmanager.tenant.application.dto.response.TenantResponse;
 import com.example.rentalmanager.tenant.application.port.input.ActivateTenantUseCase;
+import com.example.rentalmanager.tenant.application.port.input.DeactivateTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.GetTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.RegisterTenantUseCase;
+import com.example.rentalmanager.tenant.application.port.output.TenantActiveLeasePort;
 import com.example.rentalmanager.tenant.application.port.output.TenantPersistencePort;
 import com.example.rentalmanager.tenant.domain.aggregate.Tenant;
 import com.example.rentalmanager.tenant.domain.valueobject.ContactInfo;
@@ -26,9 +28,10 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class TenantApplicationService implements RegisterTenantUseCase, GetTenantUseCase, ActivateTenantUseCase {
+public class TenantApplicationService implements RegisterTenantUseCase, GetTenantUseCase, ActivateTenantUseCase, DeactivateTenantUseCase {
 
     private final TenantPersistencePort persistencePort;
+    private final TenantActiveLeasePort activeLeasePort;
     private final DomainEventPublisher  eventPublisher;
     private final SsnEncryptionService  ssnEncryptionService;
 
@@ -88,6 +91,29 @@ public class TenantApplicationService implements RegisterTenantUseCase, GetTenan
                             .doOnSuccess(saved -> {
                                 saved.getDomainEvents().forEach(eventPublisher::publish);
                                 saved.clearDomainEvents();
+                            });
+                })
+                .map(this::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public Mono<TenantResponse> deactivate(UUID tenantId) {
+        return activeLeasePort.hasActiveLease(tenantId)
+                .flatMap(hasLease -> {
+                    if (hasLease) {
+                        return Mono.error(new IllegalStateException(
+                                "Tenant has an active lease. Terminate the lease before deactivating the tenant."));
+                    }
+                    return persistencePort.findById(TenantId.of(tenantId))
+                            .switchIfEmpty(Mono.error(new IllegalArgumentException("Tenant not found: " + tenantId)))
+                            .flatMap(tenant -> {
+                                tenant.deactivate();
+                                return persistencePort.save(tenant)
+                                        .doOnSuccess(saved -> {
+                                            saved.getDomainEvents().forEach(eventPublisher::publish);
+                                            saved.clearDomainEvents();
+                                        });
                             });
                 })
                 .map(this::toResponse);

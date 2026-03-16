@@ -1,3 +1,0 @@
--- This file is superseded. The project has migrated from PostgreSQL (Flyway/R2DBC)
--- to Apache Cassandra (Spring Data Cassandra Reactive).
--- See src/main/resources/cassandra/schema.cql for the current schema.

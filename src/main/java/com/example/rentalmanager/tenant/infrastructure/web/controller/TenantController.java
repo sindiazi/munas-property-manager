@@ -3,6 +3,7 @@ package com.example.rentalmanager.tenant.infrastructure.web.controller;
 import com.example.rentalmanager.tenant.application.dto.command.RegisterTenantCommand;
 import com.example.rentalmanager.tenant.application.dto.response.TenantResponse;
 import com.example.rentalmanager.tenant.application.port.input.ActivateTenantUseCase;
+import com.example.rentalmanager.tenant.application.port.input.DeactivateTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.GetTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.RegisterTenantUseCase;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,9 +24,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TenantController {
 
-    private final RegisterTenantUseCase registerTenantUseCase;
-    private final GetTenantUseCase      getTenantUseCase;
-    private final ActivateTenantUseCase activateTenantUseCase;
+    private final RegisterTenantUseCase   registerTenantUseCase;
+    private final GetTenantUseCase        getTenantUseCase;
+    private final ActivateTenantUseCase   activateTenantUseCase;
+    private final DeactivateTenantUseCase deactivateTenantUseCase;
 
     @Operation(summary = "Register a new tenant")
     @PostMapping
@@ -50,5 +52,12 @@ public class TenantController {
     @PatchMapping("/{id}/activate")
     public Mono<TenantResponse> activate(@PathVariable UUID id) {
         return activateTenantUseCase.activate(id);
+    }
+
+    @Operation(summary = "Deactivate an active tenant",
+               description = "Fails if the tenant currently has an active lease.")
+    @PatchMapping("/{id}/deactivate")
+    public Mono<TenantResponse> deactivate(@PathVariable UUID id) {
+        return deactivateTenantUseCase.deactivate(id);
     }
 }
