@@ -2,13 +2,12 @@ package com.example.rentalmanager.leasing.domain.aggregate;
 
 import com.example.rentalmanager.leasing.domain.event.LeaseActivatedEvent;
 import com.example.rentalmanager.leasing.domain.event.LeaseCreatedEvent;
+import com.example.rentalmanager.leasing.domain.event.LeaseExpiredEvent;
 import com.example.rentalmanager.leasing.domain.event.LeaseTerminatedEvent;
 import com.example.rentalmanager.leasing.domain.valueobject.LeaseId;
 import com.example.rentalmanager.leasing.domain.valueobject.LeaseTerm;
 import com.example.rentalmanager.leasing.domain.valueobject.LeaseStatus;
 import com.example.rentalmanager.shared.domain.AggregateRoot;
-import lombok.Getter;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -23,7 +22,6 @@ import java.util.UUID;
  * are held as plain UUIDs — never as object references — to maintain bounded context
  * isolation.
  */
-@Getter
 public class Lease extends AggregateRoot<LeaseId> {
 
     private final LeaseId    id;
@@ -36,6 +34,17 @@ public class Lease extends AggregateRoot<LeaseId> {
     private LeaseStatus      status;
     private String           terminationReason;
     private final Instant    createdAt;
+
+    @Override public LeaseId    getId()                { return id; }
+    public UUID                 getTenantId()          { return tenantId; }
+    public UUID                 getPropertyId()        { return propertyId; }
+    public UUID                 getUnitId()            { return unitId; }
+    public LeaseTerm            getTerm()              { return term; }
+    public BigDecimal           getMonthlyRent()       { return monthlyRent; }
+    public BigDecimal           getSecurityDeposit()   { return securityDeposit; }
+    public LeaseStatus          getStatus()            { return status; }
+    public String               getTerminationReason() { return terminationReason; }
+    public Instant              getCreatedAt()         { return createdAt; }
 
     /** Reconstitution constructor. */
     public Lease(LeaseId id, UUID tenantId, UUID propertyId, UUID unitId,
@@ -78,7 +87,9 @@ public class Lease extends AggregateRoot<LeaseId> {
             throw new IllegalStateException("Only DRAFT leases can be activated, current status: " + status);
         }
         this.status = LeaseStatus.ACTIVE;
-        registerEvent(new LeaseActivatedEvent(UUID.randomUUID(), Instant.now(), id, tenantId, unitId));
+        registerEvent(new LeaseActivatedEvent(UUID.randomUUID(), Instant.now(),
+                id, tenantId, propertyId, unitId,
+                term.startDate(), term.endDate(), monthlyRent));
     }
 
     /** Terminates an active lease early. */
@@ -88,7 +99,9 @@ public class Lease extends AggregateRoot<LeaseId> {
         }
         this.status            = LeaseStatus.TERMINATED;
         this.terminationReason = reason;
-        registerEvent(new LeaseTerminatedEvent(UUID.randomUUID(), Instant.now(), id, tenantId, unitId, reason));
+        registerEvent(new LeaseTerminatedEvent(UUID.randomUUID(), Instant.now(),
+                id, tenantId, unitId, reason,
+                propertyId, term.startDate(), term.endDate(), monthlyRent));
     }
 
     /** Expires the lease after its natural end date is reached. */
@@ -97,5 +110,8 @@ public class Lease extends AggregateRoot<LeaseId> {
             throw new IllegalStateException("Only ACTIVE leases can expire");
         }
         this.status = LeaseStatus.EXPIRED;
+        registerEvent(new LeaseExpiredEvent(UUID.randomUUID(), Instant.now(),
+                id, tenantId, unitId, propertyId,
+                term.startDate(), term.endDate(), monthlyRent));
     }
 }

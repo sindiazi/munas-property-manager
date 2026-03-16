@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-/** Secondary adapter — implements {@link TenantPersistencePort} using Spring Data R2DBC. */
+/** Secondary adapter — implements {@link TenantPersistencePort} using Spring Data Cassandra. */
 @Component
 @RequiredArgsConstructor
 public class TenantPersistenceAdapter implements TenantPersistencePort {
@@ -18,28 +18,14 @@ public class TenantPersistenceAdapter implements TenantPersistencePort {
     private final TenantR2dbcRepository   repository;
     private final TenantPersistenceMapper mapper;
 
-    @Override
-    public Mono<Tenant> save(Tenant tenant) {
-        return repository.save(mapper.toEntity(tenant)).map(mapper::toDomain);
-    }
+    @Override public Mono<Tenant>  save(Tenant tenant)              { return repository.save(mapper.toEntity(tenant)).map(mapper::toDomain); }
+    @Override public Mono<Tenant>  findById(TenantId id)            { return repository.findById(id.value()).map(mapper::toDomain); }
+    @Override public Mono<Tenant>  findByEmail(String email)        { return repository.findByEmail(email).map(mapper::toDomain); }
+    @Override public Flux<Tenant>  findAll()                        { return repository.findAll().map(mapper::toDomain); }
+    @Override public Mono<Boolean> existsByEmail(String email)      { return repository.existsByEmail(email); }
 
     @Override
-    public Mono<Tenant> findById(TenantId id) {
-        return repository.findById(id.value()).map(mapper::toDomain);
-    }
-
-    @Override
-    public Mono<Tenant> findByEmail(String email) {
-        return repository.findByEmail(email).map(mapper::toDomain);
-    }
-
-    @Override
-    public Flux<Tenant> findAll() {
-        return repository.findAll().map(mapper::toDomain);
-    }
-
-    @Override
-    public Mono<Boolean> existsByEmail(String email) {
-        return repository.existsByEmail(email);
+    public Mono<Tenant> findByNationalIdNoHash(String nationalIdNoHash) {
+        return repository.findByNationalIdNoHash(nationalIdNoHash).map(mapper::toDomain);
     }
 }

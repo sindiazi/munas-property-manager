@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash",
       "Bash(./mvnw clean:*)",
       "Bash(cd \"I:/Code/munas-property-manager\" && mvn clean package -DskipTests 2>&1 | tail -60)",
       "Bash(cd \"I:/Code/munas-property-manager\" && mvn clean package -DskipTests 2>&1 | grep -E \"\\(ERROR|WARNING|BUILD|INFO\\\\] ---\\)\" | tail -40)",
@@ -18,7 +19,9 @@
       "Bash(docker ps:*)",
       "Bash(docker info:*)",
       "Bash(docker context:*)",
-      "Bash(powershell -Command \"Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue | Select-Object Name,Id\" 2>&1)"
+      "Bash(powershell -Command \"Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue | Select-Object Name,Id\" 2>&1)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npm install:*)"
     ]
   }
 }

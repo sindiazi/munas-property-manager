@@ -12,6 +12,8 @@ public record TenantResponse(
         String lastName,
         String email,
         String phoneNumber,
+        /** Always masked: {@code "***-**-XXXX"} where XXXX are the last 4 digits. Null if not on record. */
+        String nationalIdNo,
         int creditScore,
         TenantStatus status,
         Instant registeredAt

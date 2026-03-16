@@ -1,8 +1,10 @@
 package com.example.rentalmanager.tenant.application.service;
 
+import com.example.rentalmanager.shared.infrastructure.security.SsnEncryptionService;
 import com.example.rentalmanager.tenant.application.dto.command.RegisterTenantCommand;
 import com.example.rentalmanager.tenant.application.dto.command.UpdateTenantCommand;
 import com.example.rentalmanager.tenant.application.dto.response.TenantResponse;
+import com.example.rentalmanager.tenant.application.port.input.ActivateTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.GetTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.RegisterTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.output.TenantPersistencePort;
@@ -24,10 +26,11 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class TenantApplicationService implements RegisterTenantUseCase, GetTenantUseCase {
+public class TenantApplicationService implements RegisterTenantUseCase, GetTenantUseCase, ActivateTenantUseCase {
 
-    private final TenantPersistencePort    persistencePort;
+    private final TenantPersistencePort     persistencePort;
     private final ApplicationEventPublisher eventPublisher;
+    private final SsnEncryptionService      ssnEncryptionService;
 
     @Override
     @Transactional
@@ -40,7 +43,7 @@ public class TenantApplicationService implements RegisterTenantUseCase, GetTenan
                     var tenant = Tenant.register(
                             new PersonalInfo(cmd.firstName(), cmd.lastName(), cmd.nationalId()),
                             new ContactInfo(cmd.email(), cmd.phoneNumber()),
-                            cmd.creditScore());
+                            cmd.creditScore(), cmd.nationalIdNo());
 
                     return persistencePort.save(tenant)
                             .doOnSuccess(saved -> {
@@ -74,11 +77,41 @@ public class TenantApplicationService implements RegisterTenantUseCase, GetTenan
         return persistencePort.findAll().map(this::toResponse);
     }
 
+    @Override
+    @Transactional
+    public Mono<TenantResponse> activate(UUID tenantId) {
+        return persistencePort.findById(TenantId.of(tenantId))
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Tenant not found: " + tenantId)))
+                .flatMap(tenant -> {
+                    tenant.activate();
+                    return persistencePort.save(tenant)
+                            .doOnSuccess(saved -> {
+                                saved.getDomainEvents().forEach(eventPublisher::publishEvent);
+                                saved.clearDomainEvents();
+                            });
+                })
+                .map(this::toResponse);
+    }
+
     private TenantResponse toResponse(Tenant t) {
+        String maskedId = ssnEncryptionService.mask(t.getNationalIdNo());
         return new TenantResponse(
                 t.getId().value(),
                 t.getPersonalInfo().firstName(), t.getPersonalInfo().lastName(),
                 t.getContactInfo().email(), t.getContactInfo().phoneNumber(),
+                maskedId,
                 t.getCreditScore(), t.getStatus(), t.getRegisteredAt());
+    }
+
+    /**
+     * Resolves a plain 9-digit National ID number to the matching tenant UUID.
+     * Used by the lease creation flow when {@code tenantId} is submitted as a National ID.
+     */
+    public Mono<UUID> resolveTenantIdByNationalIdNo(String plainNationalId) {
+        String hash = ssnEncryptionService.computeLookupHash(plainNationalId);
+        return persistencePort.findByNationalIdNoHash(hash)
+                .map(t -> t.getId().value())
+                .switchIfEmpty(Mono.error(
+                        new IllegalArgumentException("No tenant found for provided National ID number")));
     }
 }

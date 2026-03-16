@@ -41,6 +41,9 @@ springdoc:
 logging:
   level:
     com.example.rentalmanager: DEBUG
+    # Cassandra request logging — logs every CQL statement + latency
+    com.datastax.oss.driver.internal.core.tracker.RequestLogger: DEBUG
+    # Suppress other noisy driver internals
     com.datastax.oss.driver: WARN
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -50,6 +53,20 @@ server:
   port: 8080
   netty:
     connection-timeout: 10s
+
+# ── Security ─────────────────────────────────────────────────────────────
+security:
+  # AES-256 key for SSN encryption at rest. Override via env var in production.
+  ssn-encryption-key: ${SSN_ENCRYPTION_KEY:YWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXoxMjM0}
+
+# ── JWT ───────────────────────────────────────────────────────────────────
+jwt:
+  secret: ${JWT_SECRET:dGhpc2lzYXZlcnlsb25nc2VjcmV0a2V5Zm9yandrZXkxMjM0NTY3ODk=}
+  expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+# ── CORS ──────────────────────────────────────────────────────────────────
+cors:
+  allowed-origins: ${FRONTEND_URL:http://localhost:3000}
 
 ---
 # ── Test profile ──────────────────────────────────────────────────────────

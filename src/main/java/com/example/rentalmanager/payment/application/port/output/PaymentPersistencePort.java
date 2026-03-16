@@ -10,6 +10,7 @@ import java.util.UUID;
 
 public interface PaymentPersistencePort {
     Mono<Payment> save(Payment payment);
+    Flux<Payment> findAll();
     Mono<Payment> findById(PaymentId id);
     Flux<Payment> findByLeaseId(UUID leaseId);
     Flux<Payment> findByTenantId(UUID tenantId);

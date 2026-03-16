@@ -6,13 +6,13 @@ package com.example.rentalmanager.shared.domain;
  * <p>Domain exceptions represent invariant violations and are always mapped to
  * HTTP 4xx responses by the global exception handler.
  */
-public abstract class DomainException extends RuntimeException {
+public class DomainException extends RuntimeException {
 
-    protected DomainException(String message) {
+    public DomainException(String message) {
         super(message);
     }
 
-    protected DomainException(String message, Throwable cause) {
+    public DomainException(String message, Throwable cause) {
         super(message, cause);
     }
 }

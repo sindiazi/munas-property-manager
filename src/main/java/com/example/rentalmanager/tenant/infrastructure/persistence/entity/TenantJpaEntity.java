@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.Indexed;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
@@ -32,4 +33,11 @@ public class TenantJpaEntity {
     @Indexed
     private TenantStatus status;
     private Instant registeredAt;
+    /** AES-256/CBC encrypted National ID number: base64( IV[16] || ciphertext ). */
+    @Column("national_id_no")
+    private String nationalIdNo;
+    /** HMAC-SHA-256 of normalised National ID digits — used for equality-lookup queries. */
+    @Indexed
+    @Column("national_id_no_hash")
+    private String nationalIdNoHash;
 }

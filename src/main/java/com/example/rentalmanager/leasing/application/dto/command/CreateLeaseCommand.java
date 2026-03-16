@@ -1,5 +1,6 @@
 package com.example.rentalmanager.leasing.application.dto.command;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
@@ -10,7 +11,11 @@ import java.util.UUID;
 /** Command to draft a new lease agreement. */
 public record CreateLeaseCommand(
 
-        @NotNull UUID tenantId,
+        /**
+         * Either a UUID string or a 9-digit SSN (no dashes).
+         * The service resolves SSNs to the corresponding tenant UUID before persisting.
+         */
+        @NotBlank String tenantId,
         @NotNull UUID propertyId,
         @NotNull UUID unitId,
 

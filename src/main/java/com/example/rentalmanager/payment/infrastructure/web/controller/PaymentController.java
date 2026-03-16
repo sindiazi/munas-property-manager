@@ -43,7 +43,12 @@ public class PaymentController {
         return processPaymentUseCase.processPayment(merged);
     }
 
-    @Operation(summary = "Get payment by ID")
+    @Operation(summary = "List all payments")
+    @GetMapping
+    public Flux<PaymentResponse> getAll() {
+        return getPaymentUseCase.getAll();
+    }
+
     @GetMapping("/{id}")
     public Mono<PaymentResponse> getById(@PathVariable UUID id) {
         return getPaymentUseCase.getById(id);

@@ -8,6 +8,7 @@ import java.util.UUID;
 
 /** Input port for querying lease agreements. */
 public interface GetLeaseUseCase {
+    Flux<LeaseResponse> getAll();
     Mono<LeaseResponse> getById(UUID leaseId);
     Flux<LeaseResponse> getByTenantId(UUID tenantId);
 }

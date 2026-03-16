@@ -54,6 +54,11 @@ public class PaymentApplicationService
     }
 
     @Override
+    public Flux<PaymentResponse> getAll() {
+        return persistencePort.findAll().map(this::toResponse);
+    }
+
+    @Override
     public Mono<PaymentResponse> getById(UUID paymentId) {
         return persistencePort.findById(PaymentId.of(paymentId))
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Payment not found: " + paymentId)))

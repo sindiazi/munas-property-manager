@@ -46,19 +46,22 @@ CREATE INDEX IF NOT EXISTS idx_units_status   ON property_units (status);
 -- ── TENANT Bounded Context ────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS tenants (
-    id            uuid PRIMARY KEY,
-    first_name    text,
-    last_name     text,
-    national_id   text,
-    email         text,
-    phone_number  text,
-    credit_score  int,
-    status        text,
-    registered_at timestamp
+    id               uuid PRIMARY KEY,
+    first_name       text,
+    last_name        text,
+    national_id      text,
+    email            text,
+    phone_number     text,
+    credit_score     int,
+    status           text,
+    registered_at    timestamp,
+    national_id_no      text,    -- AES-256/CBC encrypted: base64( IV[16] || ciphertext )
+    national_id_no_hash text     -- HMAC-SHA-256 of normalised digits, used for equality lookups
 );
 
-CREATE INDEX IF NOT EXISTS idx_tenants_email  ON tenants (email);
-CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants (status);
+CREATE INDEX IF NOT EXISTS idx_tenants_email              ON tenants (email);
+CREATE INDEX IF NOT EXISTS idx_tenants_status             ON tenants (status);
+CREATE INDEX IF NOT EXISTS idx_tenants_national_id_no     ON tenants (national_id_no_hash);
 
 -- ── LEASING Bounded Context ───────────────────────────────────────────────────
 
@@ -118,3 +121,74 @@ CREATE TABLE IF NOT EXISTS maintenance_requests (
 CREATE INDEX IF NOT EXISTS idx_maintenance_property ON maintenance_requests (property_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_tenant   ON maintenance_requests (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_status   ON maintenance_requests (status);
+
+-- ── CQRS READ PROJECTIONS (Leasing) ──────────────────────────────────────────
+--
+-- These tables are the query-side of the CQRS split.
+-- They are maintained by LeaseProjectionHandler reacting to domain events:
+--   LeaseActivatedEvent  → upsert tenant_occupied_unit + insert unit_rental_history row
+--   LeaseTerminatedEvent → delete tenant_occupied_unit + update unit_rental_history status
+--   LeaseExpiredEvent    → delete tenant_occupied_unit + update unit_rental_history status
+
+-- "Which unit is tenant X occupying right now?"  → O(1) primary-key lookup
+CREATE TABLE IF NOT EXISTS tenant_occupied_unit (
+    tenant_id     uuid PRIMARY KEY,
+    unit_id       uuid,
+    property_id   uuid,
+    lease_id      uuid,
+    monthly_rent  decimal,
+    lease_start   date,
+    lease_end     date,
+    occupied_since timestamp
+);
+
+-- "Who has ever rented unit Y, newest first?"  → single-partition scan, no ALLOW FILTERING
+CREATE TABLE IF NOT EXISTS unit_rental_history (
+    unit_id      uuid,
+    lease_start  date,
+    lease_id     uuid,
+    tenant_id    uuid,
+    property_id  uuid,
+    monthly_rent decimal,
+    lease_end    date,
+    status       text,   -- ACTIVE | TERMINATED | EXPIRED
+    PRIMARY KEY ((unit_id), lease_start, lease_id)
+) WITH CLUSTERING ORDER BY (lease_start DESC, lease_id ASC);
+
+-- ── UNIT UNAVAILABILITY (auto-created by Spring on startup) ───────────────────
+
+CREATE TABLE IF NOT EXISTS unit_unavailability (
+    id         uuid PRIMARY KEY,
+    unit_id    uuid,
+    reason     text,
+    start_date date,
+    end_date   date,       -- nullable = open-ended
+    created_at timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_unavailability_unit ON unit_unavailability (unit_id);
+
+-- ── USER Bounded Context ──────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS users (
+    id           uuid PRIMARY KEY,
+    username     text,
+    email        text,
+    password_hash text,
+    role         text,
+    active       boolean,
+    created_at   timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
+CREATE INDEX IF NOT EXISTS idx_users_email    ON users (email);
+
+-- ── SETTINGS Bounded Context ──────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id    uuid PRIMARY KEY,
+    currency   text,
+    theme      text,
+    timezone   text,
+    updated_at timestamp
+);

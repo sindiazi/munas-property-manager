@@ -11,9 +11,14 @@ import java.util.UUID;
 /** Output port for lease persistence operations. */
 public interface LeasePersistencePort {
     Mono<Lease>  save(Lease lease);
+    Flux<Lease>  findAll();
     Mono<Lease>  findById(LeaseId id);
     Flux<Lease>  findByTenantId(UUID tenantId);
     Flux<Lease>  findByUnitId(UUID unitId);
     Flux<Lease>  findByStatus(LeaseStatus status);
-    Mono<Lease>  findActiveLeaseByUnitId(UUID unitId);
+    /**
+     * Returns any lease in a non-terminal state (DRAFT or ACTIVE) for the given unit,
+     * or empty if the unit is free to be leased.
+     */
+    Mono<Lease>  findNonTerminalLeaseByUnitId(UUID unitId);
 }

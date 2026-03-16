@@ -7,7 +7,6 @@ import com.example.rentalmanager.tenant.domain.valueobject.ContactInfo;
 import com.example.rentalmanager.tenant.domain.valueobject.PersonalInfo;
 import com.example.rentalmanager.tenant.domain.valueobject.TenantId;
 import com.example.rentalmanager.tenant.domain.valueobject.TenantStatus;
-import lombok.Getter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -23,7 +22,6 @@ import java.util.UUID;
  *   <li>Email address must be unique system-wide (enforced at the application layer).</li>
  * </ul>
  */
-@Getter
 public class Tenant extends AggregateRoot<TenantId> {
 
     private final TenantId    id;
@@ -32,24 +30,36 @@ public class Tenant extends AggregateRoot<TenantId> {
     private int               creditScore;
     private TenantStatus      status;
     private final Instant     registeredAt;
+    /** Plain-text National ID number — encrypted at the persistence layer before storage. */
+    private String            nationalIdNo;
+
+    @Override public TenantId    getId()            { return id; }
+    public PersonalInfo          getPersonalInfo()   { return personalInfo; }
+    public ContactInfo           getContactInfo()    { return contactInfo; }
+    public int                   getCreditScore()    { return creditScore; }
+    public TenantStatus          getStatus()         { return status; }
+    public Instant               getRegisteredAt()   { return registeredAt; }
+    public String                getNationalIdNo()   { return nationalIdNo; }
 
     /** Reconstitution constructor. */
     public Tenant(TenantId id, PersonalInfo personalInfo, ContactInfo contactInfo,
-                  int creditScore, TenantStatus status, Instant registeredAt) {
+                  int creditScore, TenantStatus status, Instant registeredAt, String nationalIdNo) {
         this.id           = id;
         this.personalInfo = personalInfo;
         this.contactInfo  = contactInfo;
         this.creditScore  = creditScore;
         this.status       = status;
         this.registeredAt = registeredAt;
+        this.nationalIdNo = nationalIdNo;
     }
 
     // ── Factory ────────────────────────────────────────────────────────────
 
-    public static Tenant register(PersonalInfo personalInfo, ContactInfo contactInfo, int creditScore) {
+    public static Tenant register(PersonalInfo personalInfo, ContactInfo contactInfo,
+                                   int creditScore, String nationalIdNo) {
         var id     = TenantId.generate();
         var tenant = new Tenant(id, personalInfo, contactInfo, creditScore,
-                TenantStatus.INACTIVE, Instant.now());
+                TenantStatus.INACTIVE, Instant.now(), nationalIdNo);
         tenant.registerEvent(new TenantRegisteredEvent(UUID.randomUUID(), Instant.now(),
                 id, personalInfo.fullName(), contactInfo.email()));
         return tenant;

@@ -4,7 +4,6 @@ import com.example.rentalmanager.maintenance.domain.event.MaintenanceRequestCrea
 import com.example.rentalmanager.maintenance.domain.event.MaintenanceRequestStatusChangedEvent;
 import com.example.rentalmanager.maintenance.domain.valueobject.*;
 import com.example.rentalmanager.shared.domain.AggregateRoot;
-import lombok.Getter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -16,7 +15,6 @@ import java.util.UUID;
  * improve something at a rental unit. Manages the full lifecycle from OPEN
  * through IN_PROGRESS to COMPLETED or CANCELLED.
  */
-@Getter
 public class MaintenanceRequest extends AggregateRoot<RequestId> {
 
     private final RequestId          id;
@@ -28,6 +26,16 @@ public class MaintenanceRequest extends AggregateRoot<RequestId> {
     private MaintenanceStatus        status;
     private final Instant            requestedAt;
     private Instant                  completedAt;
+
+    @Override public RequestId         getId()           { return id; }
+    public UUID                        getPropertyId()   { return propertyId; }
+    public UUID                        getUnitId()       { return unitId; }
+    public UUID                        getTenantId()     { return tenantId; }
+    public WorkDescription             getDescription()  { return description; }
+    public MaintenancePriority         getPriority()     { return priority; }
+    public MaintenanceStatus           getStatus()       { return status; }
+    public Instant                     getRequestedAt()  { return requestedAt; }
+    public Instant                     getCompletedAt()  { return completedAt; }
 
     /** Reconstitution constructor. */
     public MaintenanceRequest(RequestId id, UUID propertyId, UUID unitId, UUID tenantId,

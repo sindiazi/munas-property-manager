@@ -4,6 +4,7 @@ import com.example.rentalmanager.property.domain.valueobject.PropertyType;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /** Read-model DTO for a full property including its units. */
@@ -18,5 +19,7 @@ public record PropertyResponse(
         String country,
         PropertyType type,
         List<PropertyUnitResponse> units,
+        /** Unit counts keyed by status string: AVAILABLE, OCCUPIED, UNAVAILABLE. */
+        Map<String, Long> unitStatusCounts,
         Instant createdAt
 ) {}

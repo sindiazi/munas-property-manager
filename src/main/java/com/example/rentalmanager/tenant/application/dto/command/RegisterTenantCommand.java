@@ -12,5 +12,8 @@ public record RegisterTenantCommand(
         @Email @NotBlank String email,
         @NotBlank String phoneNumber,
 
-        @Min(300) @Max(850) int creditScore
+        @Min(300) @Max(850) int creditScore,
+
+        /** Optional National ID number — 9 digits. Encrypted at rest, masked in responses. */
+        String nationalIdNo
 ) {}

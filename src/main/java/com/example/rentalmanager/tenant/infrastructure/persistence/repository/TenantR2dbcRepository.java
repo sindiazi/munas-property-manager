@@ -12,4 +12,6 @@ public interface TenantR2dbcRepository extends ReactiveCassandraRepository<Tenan
     Mono<TenantJpaEntity> findByEmail(String email);
 
     Mono<Boolean> existsByEmail(String email);
+
+    Mono<TenantJpaEntity> findByNationalIdNoHash(String nationalIdNoHash);
 }

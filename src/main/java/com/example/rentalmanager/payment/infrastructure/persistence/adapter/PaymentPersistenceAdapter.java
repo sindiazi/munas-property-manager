@@ -22,6 +22,7 @@ public class PaymentPersistenceAdapter implements PaymentPersistencePort {
     private final PaymentPersistenceMapper mapper;
 
     @Override public Mono<Payment> save(Payment p)                 { return repository.save(mapper.toEntity(p)).map(mapper::toDomain); }
+    @Override public Flux<Payment> findAll()                       { return repository.findAll().map(mapper::toDomain); }
     @Override public Mono<Payment> findById(PaymentId id)          { return repository.findById(id.value()).map(mapper::toDomain); }
     @Override public Flux<Payment> findByLeaseId(UUID leaseId)     { return repository.findByLeaseId(leaseId).map(mapper::toDomain); }
     @Override public Flux<Payment> findByTenantId(UUID tenantId)   { return repository.findByTenantId(tenantId).map(mapper::toDomain); }

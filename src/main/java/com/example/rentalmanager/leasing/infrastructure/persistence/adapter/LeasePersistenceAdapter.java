@@ -22,11 +22,15 @@ public class LeasePersistenceAdapter implements LeasePersistencePort {
     private final LeasePersistenceMapper mapper;
 
     @Override public Mono<Lease>  save(Lease lease)                   { return repository.save(mapper.toEntity(lease)).map(mapper::toDomain); }
+    @Override public Flux<Lease>  findAll()                           { return repository.findAll().map(mapper::toDomain); }
     @Override public Mono<Lease>  findById(LeaseId id)                { return repository.findById(id.value()).map(mapper::toDomain); }
     @Override public Flux<Lease>  findByTenantId(UUID tenantId)       { return repository.findByTenantId(tenantId).map(mapper::toDomain); }
     @Override public Flux<Lease>  findByUnitId(UUID unitId)           { return repository.findByUnitId(unitId).map(mapper::toDomain); }
     @Override public Flux<Lease>  findByStatus(LeaseStatus status)    { return repository.findByStatus(status).map(mapper::toDomain); }
-    @Override public Mono<Lease>  findActiveLeaseByUnitId(UUID unitId) {
-        return repository.findByUnitIdAndStatus(unitId, LeaseStatus.ACTIVE).map(mapper::toDomain);
+    @Override public Mono<Lease>  findNonTerminalLeaseByUnitId(UUID unitId) {
+        // Check ACTIVE first (most common), fall back to DRAFT
+        return repository.findByUnitIdAndStatus(unitId, LeaseStatus.ACTIVE)
+                .switchIfEmpty(repository.findByUnitIdAndStatus(unitId, LeaseStatus.DRAFT))
+                .map(mapper::toDomain);
     }
 }

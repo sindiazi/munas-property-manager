@@ -30,6 +30,18 @@ public class PropertyUnit {
             int bathrooms,
             double squareFootage,
             MonthlyRent monthlyRent) {
+        this(id, unitNumber, bedrooms, bathrooms, squareFootage, monthlyRent, UnitStatus.AVAILABLE);
+    }
+
+    /** Reconstitution constructor — used by the persistence layer to restore full state. */
+    public PropertyUnit(
+            UnitId id,
+            String unitNumber,
+            int bedrooms,
+            int bathrooms,
+            double squareFootage,
+            MonthlyRent monthlyRent,
+            UnitStatus status) {
 
         if (unitNumber == null || unitNumber.isBlank()) {
             throw new IllegalArgumentException("Unit number must not be blank");
@@ -46,7 +58,7 @@ public class PropertyUnit {
         this.bathrooms     = bathrooms;
         this.squareFootage = squareFootage;
         this.monthlyRent   = monthlyRent;
-        this.status        = UnitStatus.AVAILABLE;
+        this.status        = status;
     }
 
     /** Updates the asking rent for this unit. */
@@ -93,5 +105,22 @@ public class PropertyUnit {
             throw new IllegalStateException("Unit %s is not available for reservation".formatted(unitNumber));
         }
         this.status = UnitStatus.RESERVED;
+    }
+
+    /** Blocks the unit for any non-lease reason (maintenance, renovation, etc.). */
+    public void markUnavailable() {
+        if (status == UnitStatus.OCCUPIED) {
+            throw new IllegalStateException("Cannot block unit %s — it is currently OCCUPIED".formatted(unitNumber));
+        }
+        this.status = UnitStatus.UNAVAILABLE;
+    }
+
+    /** Returns a previously blocked unit to available. */
+    public void markAvailable() {
+        if (status != UnitStatus.UNAVAILABLE) {
+            throw new IllegalStateException(
+                    "Unit %s is not UNAVAILABLE (current: %s)".formatted(unitNumber, status));
+        }
+        this.status = UnitStatus.AVAILABLE;
     }
 }

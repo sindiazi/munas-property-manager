@@ -5,7 +5,6 @@ import com.example.rentalmanager.property.domain.event.PropertyUnitAddedEvent;
 import com.example.rentalmanager.property.domain.event.UnitStatusChangedEvent;
 import com.example.rentalmanager.property.domain.valueobject.*;
 import com.example.rentalmanager.shared.domain.AggregateRoot;
-import lombok.Getter;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -27,7 +26,6 @@ import java.util.UUID;
  *       {@code RESERVED}.</li>
  * </ul>
  */
-@Getter
 public class Property extends AggregateRoot<PropertyId> {
 
     private final PropertyId id;
@@ -37,6 +35,13 @@ public class Property extends AggregateRoot<PropertyId> {
     private PropertyType type;
     private final List<PropertyUnit> units;
     private final Instant createdAt;
+
+    @Override public PropertyId  getId()      { return id; }
+    public OwnerId               getOwnerId() { return ownerId; }
+    public String                getName()    { return name; }
+    public Address               getAddress() { return address; }
+    public PropertyType          getType()    { return type; }
+    public Instant               getCreatedAt() { return createdAt; }
 
     /**
      * Reconstitution constructor – used by the persistence layer to restore

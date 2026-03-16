@@ -7,6 +7,7 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 public interface GetPaymentUseCase {
+    Flux<PaymentResponse> getAll();
     Mono<PaymentResponse> getById(UUID paymentId);
     Flux<PaymentResponse> getByLeaseId(UUID leaseId);
     Flux<PaymentResponse> getByTenantId(UUID tenantId);

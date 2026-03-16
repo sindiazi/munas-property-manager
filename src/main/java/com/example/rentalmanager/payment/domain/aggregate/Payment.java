@@ -5,7 +5,6 @@ import com.example.rentalmanager.payment.domain.event.PaymentOverdueEvent;
 import com.example.rentalmanager.payment.domain.event.PaymentReceivedEvent;
 import com.example.rentalmanager.payment.domain.valueobject.*;
 import com.example.rentalmanager.shared.domain.AggregateRoot;
-import lombok.Getter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -18,7 +17,6 @@ import java.util.UUID;
  * <p>Represents a single payment obligation — a tenant owes a specific amount
  * by a specific date. Supports partial payments.
  */
-@Getter
 public class Payment extends AggregateRoot<PaymentId> {
 
     private final PaymentId   id;
@@ -31,6 +29,17 @@ public class Payment extends AggregateRoot<PaymentId> {
     private PaymentStatus     status;
     private final PaymentType type;
     private final Instant     createdAt;
+
+    @Override public PaymentId  getId()        { return id; }
+    public UUID                 getLeaseId()   { return leaseId; }
+    public UUID                 getTenantId()  { return tenantId; }
+    public Money                getAmountDue() { return amountDue; }
+    public Money                getAmountPaid(){ return amountPaid; }
+    public LocalDate            getDueDate()   { return dueDate; }
+    public LocalDate            getPaidDate()  { return paidDate; }
+    public PaymentStatus        getStatus()    { return status; }
+    public PaymentType          getType()      { return type; }
+    public Instant              getCreatedAt() { return createdAt; }
 
     /** Reconstitution constructor. */
     public Payment(PaymentId id, UUID leaseId, UUID tenantId, Money amountDue, Money amountPaid,

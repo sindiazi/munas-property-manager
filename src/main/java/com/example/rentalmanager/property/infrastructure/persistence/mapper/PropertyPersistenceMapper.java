@@ -71,6 +71,7 @@ public class PropertyPersistenceMapper {
                 entity.getBedrooms(),
                 entity.getBathrooms(),
                 entity.getSquareFootage(),
-                MonthlyRent.of(entity.getMonthlyRentAmount(), entity.getCurrencyCode()));
+                MonthlyRent.of(entity.getMonthlyRentAmount(), entity.getCurrencyCode()),
+                entity.getStatus());
     }
 }

@@ -6,7 +6,9 @@ public enum UnitStatus {
     AVAILABLE,
     /** Currently occupied by a tenant under an active lease. */
     OCCUPIED,
-    /** Temporarily unavailable due to ongoing maintenance work. */
+    /** Blocked by management: maintenance, renovation, or any other reason. */
+    UNAVAILABLE,
+    /** Temporarily unavailable due to ongoing maintenance work (legacy — maps to UNAVAILABLE in UI). */
     UNDER_MAINTENANCE,
     /** Reserved / application pending. */
     RESERVED

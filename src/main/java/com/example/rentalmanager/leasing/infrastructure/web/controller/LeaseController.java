@@ -49,6 +49,12 @@ public class LeaseController {
         return terminateLeaseUseCase.terminateLease(merged);
     }
 
+    @Operation(summary = "List all leases")
+    @GetMapping
+    public Flux<LeaseResponse> getAll() {
+        return getLeaseUseCase.getAll();
+    }
+
     @Operation(summary = "Get lease by ID")
     @GetMapping("/{id}")
     public Mono<LeaseResponse> getById(@PathVariable UUID id) {
