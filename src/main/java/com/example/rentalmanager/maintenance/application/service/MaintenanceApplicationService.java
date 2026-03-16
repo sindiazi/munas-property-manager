@@ -9,7 +9,7 @@ import com.example.rentalmanager.maintenance.domain.aggregate.MaintenanceRequest
 import com.example.rentalmanager.maintenance.domain.valueobject.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
+import com.example.rentalmanager.shared.domain.DomainEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -25,8 +25,8 @@ public class MaintenanceApplicationService
         implements CreateMaintenanceRequestUseCase, UpdateMaintenanceRequestUseCase,
                    GetMaintenanceRequestUseCase {
 
-    private final MaintenancePersistencePort  persistencePort;
-    private final ApplicationEventPublisher   eventPublisher;
+    private final MaintenancePersistencePort persistencePort;
+    private final DomainEventPublisher       eventPublisher;
 
     @Override
     @Transactional
@@ -78,7 +78,7 @@ public class MaintenanceApplicationService
     }
 
     private void publishAndClear(MaintenanceRequest request) {
-        request.getDomainEvents().forEach(eventPublisher::publishEvent);
+        request.getDomainEvents().forEach(eventPublisher::publish);
         request.clearDomainEvents();
     }
 

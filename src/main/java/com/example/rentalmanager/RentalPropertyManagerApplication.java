@@ -2,6 +2,7 @@ package com.example.rentalmanager;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * Entry point for the Rental Property Manager application.
@@ -29,6 +30,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * </pre>
  */
 @SpringBootApplication
+@EnableScheduling
 public class RentalPropertyManagerApplication {
 
     public static void main(String[] args) {

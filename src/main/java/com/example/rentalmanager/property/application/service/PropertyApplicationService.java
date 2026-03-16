@@ -16,7 +16,7 @@ import com.example.rentalmanager.property.domain.aggregate.PropertyUnit;
 import com.example.rentalmanager.property.domain.valueobject.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
+import com.example.rentalmanager.shared.domain.DomainEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,7 +48,7 @@ public class PropertyApplicationService
     private final PropertyPersistencePort            persistencePort;
     private final UnitPersistencePort                unitPersistencePort;
     private final UnitUnavailabilityPersistencePort  unavailabilityPort;
-    private final ApplicationEventPublisher          eventPublisher;
+    private final DomainEventPublisher               eventPublisher;
 
     // ── CreatePropertyUseCase ──────────────────────────────────────────────
 
@@ -165,7 +165,7 @@ public class PropertyApplicationService
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private void publishEvents(Property property) {
-        property.getDomainEvents().forEach(eventPublisher::publishEvent);
+        property.getDomainEvents().forEach(eventPublisher::publish);
         property.clearDomainEvents();
     }
 

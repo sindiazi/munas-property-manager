@@ -10,7 +10,7 @@ import com.example.rentalmanager.payment.domain.valueobject.Money;
 import com.example.rentalmanager.payment.domain.valueobject.PaymentId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
+import com.example.rentalmanager.shared.domain.DomainEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -25,8 +25,8 @@ import java.util.UUID;
 public class PaymentApplicationService
         implements CreatePaymentUseCase, ProcessPaymentUseCase, GetPaymentUseCase {
 
-    private final PaymentPersistencePort   persistencePort;
-    private final ApplicationEventPublisher eventPublisher;
+    private final PaymentPersistencePort persistencePort;
+    private final DomainEventPublisher   eventPublisher;
 
     @Override
     @Transactional
@@ -69,7 +69,7 @@ public class PaymentApplicationService
     @Override public Flux<PaymentResponse> getByTenantId(UUID tenantId) { return persistencePort.findByTenantId(tenantId).map(this::toResponse); }
 
     private void publishAndClear(Payment payment) {
-        payment.getDomainEvents().forEach(eventPublisher::publishEvent);
+        payment.getDomainEvents().forEach(eventPublisher::publish);
         payment.clearDomainEvents();
     }
 

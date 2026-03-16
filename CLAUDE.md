@@ -85,6 +85,46 @@ Test: `src/test/java/.../architecture/HexagonalArchitectureTest.java`
 
 ---
 
+## Event-Driven Architecture (EDA) principle
+
+**Rule: cross-domain state changes must go through domain events, never direct calls.**
+
+When two bounded contexts need to stay in sync:
+1. The domain that **owns the state** mutates its own aggregate and emits a domain event.
+2. The **subscribing domain** listens for that event in its own infrastructure layer and updates its own state to stay eventually consistent.
+3. No application service in domain A may call an application service or output port in domain B to mutate domain B's state.
+
+### Event publishing abstraction
+
+All application services publish events through `DomainEventPublisher` (in `shared/domain`) rather than Spring's `ApplicationEventPublisher` directly. The default implementation `SpringDomainEventPublisher` (in `shared/infrastructure/event`) delegates to Spring's in-process event bus. To swap to Kafka or another broker: provide a new `DomainEventPublisher` bean — no application-layer code changes.
+
+```
+shared/domain/DomainEventPublisher          ← interface (domain layer)
+shared/infrastructure/event/
+  SpringDomainEventPublisher                ← Spring in-process impl (swap for Kafka impl here)
+```
+
+### Event subscribers (handlers)
+
+Handlers live in `infrastructure/event/` within the subscribing bounded context. They use `@EventListener` for the Spring in-process bus (swapped to `@KafkaListener` etc. when moving to a broker).
+
+| Handler | Location | Listens to | Effect |
+|---|---|---|---|
+| `UnitStatusSyncHandler` | `property/infrastructure/event/` | `LeaseActivatedEvent`, `LeaseTerminatedEvent`, `LeaseExpiredEvent` | Updates `PropertyUnit` status (OCCUPIED / AVAILABLE) |
+| `LeaseProjectionHandler` | `leasing/infrastructure/projection/` | `LeaseActivatedEvent`, `LeaseTerminatedEvent`, `LeaseExpiredEvent` | Maintains CQRS read projections |
+
+All handlers use fire-and-forget (`.subscribe()`) — cross-domain state sync is eventually consistent by design.
+
+### What this replaced
+
+`UnitStatusPort` (an output port in the Leasing context pointing into Property) and `UnitStatusAdapter` have been deleted. `LeaseApplicationService` no longer calls into the Property domain directly after activating or terminating a lease.
+
+### Lease expiry policy
+
+`LeaseExpiryPolicy` (`leasing/application/service/`) is a `@Scheduled` job running daily at 01:00. It finds all `ACTIVE` leases past their end date, calls `lease.expire()`, and publishes `LeaseExpiredEvent`. The event then flows to `UnitStatusSyncHandler` and `LeaseProjectionHandler` via the normal EDA path.
+
+---
+
 ## Database
 
 **Cassandra** keyspace: `rental_manager` (default; override via `CASSANDRA_KEYSPACE` env var).
@@ -112,7 +152,7 @@ Spring Data Cassandra maps `camelCase` field names to **all-lowercase** column n
 ## Key domain rules
 
 - **One non-terminal lease per unit**: a unit cannot have a new lease created while an ACTIVE or DRAFT lease already exists for it. Enforced in `LeaseApplicationService.createLease()` via `findNonTerminalLeaseByUnitId()`.
-- **Lease lifecycle**: `DRAFT → ACTIVE → EXPIRED | TERMINATED`. Activation marks the unit `OCCUPIED`; termination/expiry marks it `AVAILABLE`.
+- **Lease lifecycle**: `DRAFT → ACTIVE → EXPIRED | TERMINATED`. Activation emits `LeaseActivatedEvent`; termination emits `LeaseTerminatedEvent`; daily expiry policy emits `LeaseExpiredEvent`. Unit status changes (OCCUPIED / AVAILABLE) are driven by `UnitStatusSyncHandler` reacting to these events.
 - **Tenant status**: `INACTIVE → ACTIVE`. Tenants must exist before leases can reference them. `PATCH /api/v1/tenants/{id}/activate` activates an inactive tenant.
 
 ---

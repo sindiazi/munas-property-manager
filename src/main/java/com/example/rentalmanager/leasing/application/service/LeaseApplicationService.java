@@ -5,14 +5,13 @@ import com.example.rentalmanager.leasing.application.dto.command.TerminateLeaseC
 import com.example.rentalmanager.leasing.application.dto.response.LeaseResponse;
 import com.example.rentalmanager.leasing.application.port.input.*;
 import com.example.rentalmanager.leasing.application.port.output.LeasePersistencePort;
-import com.example.rentalmanager.leasing.application.port.output.UnitStatusPort;
 import com.example.rentalmanager.leasing.domain.aggregate.Lease;
 import com.example.rentalmanager.leasing.domain.valueobject.LeaseId;
 import com.example.rentalmanager.leasing.domain.valueobject.LeaseTerm;
+import com.example.rentalmanager.shared.domain.DomainEventPublisher;
 import com.example.rentalmanager.tenant.application.service.TenantApplicationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -31,10 +30,9 @@ public class LeaseApplicationService
 
     private static final Pattern NATIONAL_ID_PATTERN = Pattern.compile("^\\d{9}$");
 
-    private final LeasePersistencePort       persistencePort;
-    private final UnitStatusPort             unitStatusPort;
-    private final TenantApplicationService   tenantApplicationService;
-    private final ApplicationEventPublisher  eventPublisher;
+    private final LeasePersistencePort     persistencePort;
+    private final TenantApplicationService tenantApplicationService;
+    private final DomainEventPublisher     eventPublisher;
 
     @Override
     @Transactional
@@ -62,10 +60,7 @@ public class LeaseApplicationService
                 .flatMap(lease -> {
                     lease.activate();
                     return persistencePort.save(lease)
-                            .doOnSuccess(this::publishAndClear)
-                            // Keep unit in sync: OCCUPIED
-                            .flatMap(saved -> unitStatusPort.markOccupied(saved.getUnitId())
-                                    .thenReturn(saved));
+                            .doOnSuccess(this::publishAndClear);
                 })
                 .map(this::toResponse);
     }
@@ -78,10 +73,7 @@ public class LeaseApplicationService
                 .flatMap(lease -> {
                     lease.terminate(cmd.reason());
                     return persistencePort.save(lease)
-                            .doOnSuccess(this::publishAndClear)
-                            // Keep unit in sync: AVAILABLE
-                            .flatMap(saved -> unitStatusPort.markAvailable(saved.getUnitId())
-                                    .thenReturn(saved));
+                            .doOnSuccess(this::publishAndClear);
                 })
                 .map(this::toResponse);
     }
@@ -106,8 +98,8 @@ public class LeaseApplicationService
     // ── Helpers ────────────────────────────────────────────────────────────
 
     /**
-     * Accepts either a UUID string or a 9-digit SSN.
-     * If SSN is detected, resolves it to the corresponding tenant UUID.
+     * Accepts either a UUID string or a 9-digit National ID number.
+     * If a National ID is detected, resolves it to the corresponding tenant UUID.
      */
     private Mono<UUID> resolveTenantId(String tenantIdentifier) {
         if (NATIONAL_ID_PATTERN.matcher(tenantIdentifier).matches()) {
@@ -123,7 +115,7 @@ public class LeaseApplicationService
     }
 
     private void publishAndClear(Lease lease) {
-        lease.getDomainEvents().forEach(eventPublisher::publishEvent);
+        lease.getDomainEvents().forEach(eventPublisher::publish);
         lease.clearDomainEvents();
     }
 

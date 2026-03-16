@@ -14,7 +14,7 @@ import com.example.rentalmanager.tenant.domain.valueobject.PersonalInfo;
 import com.example.rentalmanager.tenant.domain.valueobject.TenantId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationEventPublisher;
+import com.example.rentalmanager.shared.domain.DomainEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
@@ -28,9 +28,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TenantApplicationService implements RegisterTenantUseCase, GetTenantUseCase, ActivateTenantUseCase {
 
-    private final TenantPersistencePort     persistencePort;
-    private final ApplicationEventPublisher eventPublisher;
-    private final SsnEncryptionService      ssnEncryptionService;
+    private final TenantPersistencePort persistencePort;
+    private final DomainEventPublisher  eventPublisher;
+    private final SsnEncryptionService  ssnEncryptionService;
 
     @Override
     @Transactional
@@ -47,7 +47,7 @@ public class TenantApplicationService implements RegisterTenantUseCase, GetTenan
 
                     return persistencePort.save(tenant)
                             .doOnSuccess(saved -> {
-                                saved.getDomainEvents().forEach(eventPublisher::publishEvent);
+                                saved.getDomainEvents().forEach(eventPublisher::publish);
                                 saved.clearDomainEvents();
                             })
                             .map(this::toResponse);
@@ -86,7 +86,7 @@ public class TenantApplicationService implements RegisterTenantUseCase, GetTenan
                     tenant.activate();
                     return persistencePort.save(tenant)
                             .doOnSuccess(saved -> {
-                                saved.getDomainEvents().forEach(eventPublisher::publishEvent);
+                                saved.getDomainEvents().forEach(eventPublisher::publish);
                                 saved.clearDomainEvents();
                             });
                 })
