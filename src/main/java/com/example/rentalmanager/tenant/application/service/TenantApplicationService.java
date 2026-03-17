@@ -8,6 +8,7 @@ import com.example.rentalmanager.tenant.application.port.input.ActivateTenantUse
 import com.example.rentalmanager.tenant.application.port.input.DeactivateTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.GetTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.RegisterTenantUseCase;
+import com.example.rentalmanager.tenant.application.port.input.UpdateTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.output.TenantActiveLeasePort;
 import com.example.rentalmanager.tenant.application.port.output.TenantPersistencePort;
 import com.example.rentalmanager.tenant.domain.aggregate.Tenant;
@@ -28,7 +29,8 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class TenantApplicationService implements RegisterTenantUseCase, GetTenantUseCase, ActivateTenantUseCase, DeactivateTenantUseCase {
+public class TenantApplicationService implements RegisterTenantUseCase, GetTenantUseCase,
+        ActivateTenantUseCase, DeactivateTenantUseCase, UpdateTenantUseCase {
 
     private final TenantPersistencePort persistencePort;
     private final TenantActiveLeasePort activeLeasePort;
@@ -57,15 +59,32 @@ public class TenantApplicationService implements RegisterTenantUseCase, GetTenan
                 });
     }
 
+    @Override
     @Transactional
-    public Mono<TenantResponse> updateContactInfo(UpdateTenantCommand cmd) {
+    public Mono<TenantResponse> update(UpdateTenantCommand cmd) {
         return persistencePort.findById(TenantId.of(cmd.tenantId()))
-                .switchIfEmpty(Mono.error(new IllegalArgumentException("Tenant not found")))
+                .switchIfEmpty(Mono.error(new IllegalArgumentException("Tenant not found: " + cmd.tenantId())))
                 .flatMap(tenant -> {
-                    tenant.updateContactInfo(new ContactInfo(cmd.email(), cmd.phoneNumber()));
-                    return persistencePort.save(tenant);
+                    boolean emailChanged = !tenant.getContactInfo().email().equalsIgnoreCase(cmd.email());
+                    if (!emailChanged) {
+                        return applyUpdate(tenant, cmd);
+                    }
+                    return persistencePort.existsByEmail(cmd.email())
+                            .flatMap(exists -> {
+                                if (exists) return Mono.error(new IllegalArgumentException(
+                                        "Email already in use: " + cmd.email()));
+                                return applyUpdate(tenant, cmd);
+                            });
                 })
                 .map(this::toResponse);
+    }
+
+    private Mono<Tenant> applyUpdate(Tenant tenant, UpdateTenantCommand cmd) {
+        tenant.updatePersonalInfo(new PersonalInfo(
+                cmd.firstName(), cmd.lastName(), tenant.getPersonalInfo().nationalId()));
+        tenant.updateContactInfo(new ContactInfo(cmd.email(), cmd.phoneNumber()));
+        tenant.updateCreditScore(cmd.creditScore());
+        return persistencePort.save(tenant);
     }
 
     @Override

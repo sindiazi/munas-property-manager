@@ -82,6 +82,10 @@ public class Tenant extends AggregateRoot<TenantId> {
         changeStatus(TenantStatus.BLACKLISTED);
     }
 
+    public void updatePersonalInfo(PersonalInfo newPersonalInfo) {
+        this.personalInfo = newPersonalInfo;
+    }
+
     public void updateContactInfo(ContactInfo newContactInfo) {
         this.contactInfo = newContactInfo;
     }

@@ -1,11 +1,13 @@
 package com.example.rentalmanager.tenant.infrastructure.web.controller;
 
 import com.example.rentalmanager.tenant.application.dto.command.RegisterTenantCommand;
+import com.example.rentalmanager.tenant.application.dto.command.UpdateTenantCommand;
 import com.example.rentalmanager.tenant.application.dto.response.TenantResponse;
 import com.example.rentalmanager.tenant.application.port.input.ActivateTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.DeactivateTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.GetTenantUseCase;
 import com.example.rentalmanager.tenant.application.port.input.RegisterTenantUseCase;
+import com.example.rentalmanager.tenant.application.port.input.UpdateTenantUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,6 +30,7 @@ public class TenantController {
     private final GetTenantUseCase        getTenantUseCase;
     private final ActivateTenantUseCase   activateTenantUseCase;
     private final DeactivateTenantUseCase deactivateTenantUseCase;
+    private final UpdateTenantUseCase     updateTenantUseCase;
 
     @Operation(summary = "Register a new tenant")
     @PostMapping
@@ -46,6 +49,17 @@ public class TenantController {
     @GetMapping
     public Flux<TenantResponse> getAll() {
         return getTenantUseCase.getAll();
+    }
+
+    @Operation(summary = "Update tenant profile (name, contact details, credit score)")
+    @PutMapping("/{id}")
+    public Mono<TenantResponse> update(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateTenantCommand body) {
+        var cmd = new UpdateTenantCommand(
+                id, body.firstName(), body.lastName(),
+                body.email(), body.phoneNumber(), body.creditScore());
+        return updateTenantUseCase.update(cmd);
     }
 
     @Operation(summary = "Activate an inactive tenant")
