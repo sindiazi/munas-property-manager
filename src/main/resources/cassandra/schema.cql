@@ -43,6 +43,29 @@ CREATE TABLE IF NOT EXISTS property_units (
 CREATE INDEX IF NOT EXISTS idx_units_property ON property_units (property_id);
 CREATE INDEX IF NOT EXISTS idx_units_status   ON property_units (status);
 
+-- ── UNIT ROOM GALLERY (Property Bounded Context) ─────────────────────────────
+
+CREATE TABLE IF NOT EXISTS unit_rooms (
+    id            uuid PRIMARY KEY,
+    unit_id       uuid,
+    type          text,
+    label         text,
+    display_order int
+);
+
+CREATE INDEX IF NOT EXISTS idx_unit_rooms_unit ON unit_rooms (unit_id);
+
+CREATE TABLE IF NOT EXISTS unit_room_images (
+    id            uuid PRIMARY KEY,
+    room_id       uuid,
+    url           text,
+    display_order int,
+    caption       text,
+    uploaded_at   timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_unit_room_images_room ON unit_room_images (room_id);
+
 -- ── TENANT Bounded Context ────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS tenants (

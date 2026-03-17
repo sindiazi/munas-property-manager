@@ -65,6 +65,13 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.PATCH, "/api/v1/units/*/unavailable").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .pathMatchers(HttpMethod.PATCH, "/api/v1/units/*/available").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .pathMatchers(HttpMethod.GET, "/api/v1/units/*/unavailability").authenticated()
+                        // Unit room gallery — ADMIN or PROPERTY_MANAGER for writes
+                        .pathMatchers(HttpMethod.POST,   "/api/v1/units/*/rooms").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.PUT,    "/api/v1/units/*/rooms/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.DELETE, "/api/v1/units/*/rooms/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.POST,   "/api/v1/units/*/rooms/*/images").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.PUT,    "/api/v1/units/*/rooms/*/images/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.DELETE, "/api/v1/units/*/rooms/*/images/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationWebFilter(jwtAuthenticationConverter), SecurityWebFiltersOrder.AUTHENTICATION)

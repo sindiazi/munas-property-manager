@@ -20,7 +20,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/v1/maintenance")
 @RequiredArgsConstructor
-public class MaintenanceController {
+public class PusMaintenanceController {
 
     private final CreateMaintenanceRequestUseCase createUseCase;
     private final UpdateMaintenanceRequestUseCase updateUseCase;
