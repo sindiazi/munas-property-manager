@@ -10,11 +10,11 @@ The system models five independent bounded contexts:
 
 | Context | Responsibility |
 |---|---|
-| **Property** | Manage properties and their rentable units (status, availability) |
+| **Property** | Manage properties, rentable units (status, availability), and unit room galleries |
 | **Tenant** | Register and manage tenant profiles and activation status |
 | **Leasing** | Handle lease agreement lifecycle (DRAFT → ACTIVE → EXPIRED/TERMINATED) |
 | **Payment** | Track rent payments with partial payment support and overdue detection |
-| **Maintenance** | Manage maintenance requests from submission through completion |
+| **Maintenance** | Manage maintenance requests and the reference catalogue of categories and issue templates |
 
 Bounded contexts communicate exclusively through domain events — there are no direct object references across context boundaries, only UUID references.
 
@@ -68,7 +68,7 @@ REST Controller
 
 All domain events are immutable `record` types implementing a `sealed DomainEvent` interface. Events are published by the application service after successful persistence. This enables exhaustive pattern matching and provides a foundation for event sourcing or event-driven cross-context workflows.
 
-Examples: `LeaseActivatedEvent`, `LeaseTerminatedEvent`, `LeaseExpiredEvent`, `PaymentReceivedEvent`, `MaintenanceRequestStatusChangedEvent`
+Examples: `LeaseActivatedEvent`, `LeaseTerminatedEvent`, `LeaseExpiredEvent`, `PaymentReceivedEvent`, `MaintenanceRequestStatusChangedEvent`, `MaintenanceCategoryCreatedEvent`, `MaintenanceIssueTemplateAddedEvent`
 
 ### CQRS Read Projections
 
@@ -161,7 +161,7 @@ The schema is created automatically on startup (`create_if_not_exists`).
 - Health: `http://localhost:8080/actuator/health`
 - Metrics: `http://localhost:8080/actuator/prometheus`
 
-**Default credentials (seed data):** `admin` / `admin123`
+**Default credentials:** `admin` / `Admin@1234`
 
 ---
 
@@ -198,6 +198,33 @@ The schema is created automatically on startup (`create_if_not_exists`).
 |---|---|---|
 | `GET` | `/api/v1/occupancy/tenant/{tenantId}` | Current unit for a tenant |
 | `GET` | `/api/v1/occupancy/unit/{unitId}/history` | Full rental history for a unit |
+
+### Unit Room Gallery
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/units/{unitId}/rooms` | Get all rooms with images for a unit |
+| `POST` | `/api/v1/units/{unitId}/rooms` | Add a room to a unit |
+| `PUT` | `/api/v1/units/{unitId}/rooms/{roomId}` | Update a room |
+| `DELETE` | `/api/v1/units/{unitId}/rooms/{roomId}` | Remove a room and its images |
+| `POST` | `/api/v1/units/{unitId}/rooms/{roomId}/images` | Add an image to a room |
+| `PUT` | `/api/v1/units/{unitId}/rooms/{roomId}/images/{imageId}` | Update a room image |
+| `DELETE` | `/api/v1/units/{unitId}/rooms/{roomId}/images/{imageId}` | Remove a room image |
+
+Room types: `LIVING_ROOM`, `BEDROOM`, `KITCHEN`, `BATHROOM`, `FLOOR_PLAN`. Write operations require `ADMIN` or `PROPERTY_MANAGER` role.
+
+### Maintenance Categories (reference data)
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/maintenance/categories` | List all categories with issue templates |
+| `GET` | `/api/v1/maintenance/categories/{id}` | Get a single category |
+| `POST` | `/api/v1/maintenance/categories` | Create a category |
+| `PUT` | `/api/v1/maintenance/categories/{id}` | Rename a category |
+| `DELETE` | `/api/v1/maintenance/categories/{id}` | Delete a category and all its issue templates |
+| `POST` | `/api/v1/maintenance/categories/{id}/issues` | Add an issue template to a category |
+| `PUT` | `/api/v1/maintenance/categories/{id}/issues/{issueId}` | Update an issue template |
+| `DELETE` | `/api/v1/maintenance/categories/{id}/issues/{issueId}` | Remove an issue template |
+
+Category and issue IDs are human-readable slugs (e.g. `plumbing`, `leaking_faucet`). Write operations require `ADMIN` or `PROPERTY_MANAGER` role. Reads are open to all authenticated users.
 
 ### Payments & Maintenance
 Full CRUD via `/api/v1/payments` and `/api/v1/maintenance`. See Swagger UI for details.
@@ -238,7 +265,10 @@ The `seed` profile loads:
 - **Monthly payments** with realistic outcomes (78% on-time, 12% late, 5% partial, 3% overdue, 2% cancelled)
 - **~30 maintenance requests** spread across 2 years
 - **CQRS projection rows** for current occupancy and rental history
+- **10 maintenance categories** with 41 issue templates (each category includes a catch-all "Other" issue)
 
 Units 0–14 are OCCUPIED; units 15–21 are AVAILABLE.
 
-The seeder is idempotent: it truncates leases, payments, maintenance requests, and projection tables before each run. Properties, units, and tenants use deterministic UUIDs and upsert safely.
+The seeder is idempotent: it truncates leases, payments, maintenance requests, projection tables, and maintenance reference data before each run. Properties, units, and tenants use deterministic UUIDs and upsert safely.
+
+**Default admin settings** (seeded by `DataInitializer` on first startup): theme `DARK`, currency `KES`, timezone `Africa/Nairobi`.

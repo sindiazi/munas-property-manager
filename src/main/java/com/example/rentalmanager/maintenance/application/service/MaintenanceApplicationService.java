@@ -47,6 +47,7 @@ public class MaintenanceApplicationService
                 .switchIfEmpty(Mono.error(new IllegalArgumentException("Request not found: " + cmd.requestId())))
                 .flatMap(request -> {
                     switch (cmd.newStatus()) {
+                        case OPEN     -> request.open();
                         case ASSIGNED     -> request.assign();
                         case IN_PROGRESS  -> request.startWork();
                         case COMPLETED    -> request.complete(cmd.resolutionNotes());

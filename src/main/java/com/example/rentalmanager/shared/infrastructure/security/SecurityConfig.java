@@ -72,6 +72,13 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.POST,   "/api/v1/units/*/rooms/*/images").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .pathMatchers(HttpMethod.PUT,    "/api/v1/units/*/rooms/*/images/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .pathMatchers(HttpMethod.DELETE, "/api/v1/units/*/rooms/*/images/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        // Maintenance categories — ADMIN or PROPERTY_MANAGER for writes; reads open to all authenticated
+                        .pathMatchers(HttpMethod.POST,   "/api/v1/maintenance/categories").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.PUT,    "/api/v1/maintenance/categories/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.DELETE, "/api/v1/maintenance/categories/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.POST,   "/api/v1/maintenance/categories/*/issues").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.PUT,    "/api/v1/maintenance/categories/*/issues/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        .pathMatchers(HttpMethod.DELETE, "/api/v1/maintenance/categories/*/issues/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationWebFilter(jwtAuthenticationConverter), SecurityWebFiltersOrder.AUTHENTICATION)

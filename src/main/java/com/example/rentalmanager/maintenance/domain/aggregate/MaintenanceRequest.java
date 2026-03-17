@@ -70,6 +70,10 @@ public class MaintenanceRequest extends AggregateRoot<RequestId> {
         transition(MaintenanceStatus.ASSIGNED);
     }
 
+    public void open() {
+        transition(MaintenanceStatus.OPEN);
+    }
+
     public void startWork() {
         if (status != MaintenanceStatus.ASSIGNED && status != MaintenanceStatus.OPEN) {
             throw new IllegalStateException("Work can only start from OPEN or ASSIGNED status");

@@ -10,7 +10,12 @@ import com.example.rentalmanager.leasing.infrastructure.persistence.repository.T
 import com.example.rentalmanager.leasing.infrastructure.persistence.repository.UnitRentalHistoryRepository;
 import com.example.rentalmanager.maintenance.domain.valueobject.MaintenancePriority;
 import com.example.rentalmanager.maintenance.domain.valueobject.MaintenanceStatus;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.entity.MaintenanceCategoryEntity;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.entity.MaintenanceIssueTemplateEntity;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.entity.MaintenanceIssueTemplatePK;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.entity.MaintenanceRequestJpaEntity;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceCategoryRepository;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceIssueTemplateRepository;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestR2dbcRepository;
 import com.example.rentalmanager.payment.domain.valueobject.PaymentStatus;
 import com.example.rentalmanager.payment.domain.valueobject.PaymentType;
@@ -86,6 +91,8 @@ public class DataSeeder implements ApplicationRunner {
     private final LeaseR2dbcRepository              leaseRepo;
     private final PaymentR2dbcRepository            paymentRepo;
     private final MaintenanceRequestR2dbcRepository maintenanceRepo;
+    private final MaintenanceCategoryRepository      categoryRepo;
+    private final MaintenanceIssueTemplateRepository issueTemplateRepo;
     private final TenantOccupiedUnitRepository      occupancyRepo;
     private final UnitRentalHistoryRepository       rentalHistoryRepo;
     private final SsnEncryptionService              ssnEncryptionService;
@@ -157,13 +164,16 @@ public class DataSeeder implements ApplicationRunner {
             units.get(i).setStatus(i < 15 ? UnitStatus.OCCUPIED : UnitStatus.AVAILABLE);
         }
 
-        List<MaintenanceRequestJpaEntity> maintenance = buildMaintenance(units, tenants);
+        List<MaintenanceRequestJpaEntity> maintenance   = buildMaintenance(units, tenants);
+        List<MaintenanceCategoryEntity>   categories    = buildCategories();
+        List<MaintenanceIssueTemplateEntity> issueTemplates = buildIssueTemplates();
 
         log.info("Seeding: {} properties, {} units, {} tenants, {} leases, {} payments, {} maintenance, " +
-                 "{} occupancy rows, {} rental history rows",
+                 "{} occupancy rows, {} rental history rows, {} categories, {} issue templates",
             properties.size(), units.size(), tenants.size(),
             allLeases.size(), allPayments.size(), maintenance.size(),
-            occupancies.size(), rentalHistory.size());
+            occupancies.size(), rentalHistory.size(),
+            categories.size(), issueTemplates.size());
 
         // Truncate non-idempotent tables first so repeated seed runs don't create duplicates
         return rentalHistoryRepo.deleteAll()
@@ -171,6 +181,8 @@ public class DataSeeder implements ApplicationRunner {
             .then(maintenanceRepo.deleteAll())
             .then(paymentRepo.deleteAll())
             .then(leaseRepo.deleteAll())
+            .then(issueTemplateRepo.deleteAll())
+            .then(categoryRepo.deleteAll())
             .then(Flux.fromIterable(properties).flatMap(propertyRepo::save).then())
             .then(Flux.fromIterable(units).flatMap(unitRepo::save).then())
             .then(Flux.fromIterable(tenants).flatMap(tenantRepo::save).then())
@@ -178,7 +190,9 @@ public class DataSeeder implements ApplicationRunner {
             .then(Flux.fromIterable(allPayments).flatMap(paymentRepo::save).then())
             .then(Flux.fromIterable(maintenance).flatMap(maintenanceRepo::save).then())
             .then(Flux.fromIterable(occupancies).flatMap(occupancyRepo::save).then())
-            .then(Flux.fromIterable(rentalHistory).flatMap(rentalHistoryRepo::save).then());
+            .then(Flux.fromIterable(rentalHistory).flatMap(rentalHistoryRepo::save).then())
+            .then(Flux.fromIterable(categories).flatMap(categoryRepo::save).then())
+            .then(Flux.fromIterable(issueTemplates).flatMap(issueTemplateRepo::save).then());
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -530,5 +544,98 @@ public class DataSeeder implements ApplicationRunner {
             count++;
         }
         return requests;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Maintenance categories + issue templates (reference data)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private List<MaintenanceCategoryEntity> buildCategories() {
+        return List.of(
+            new MaintenanceCategoryEntity("plumbing",      "Plumbing"),
+            new MaintenanceCategoryEntity("electrical",    "Electrical"),
+            new MaintenanceCategoryEntity("hvac",          "HVAC"),
+            new MaintenanceCategoryEntity("appliances",    "Appliances"),
+            new MaintenanceCategoryEntity("doors_windows", "Doors / Windows"),
+            new MaintenanceCategoryEntity("interior",      "Walls / Floors / Ceiling"),
+            new MaintenanceCategoryEntity("pest_control",  "Pest Control"),
+            new MaintenanceCategoryEntity("water_damage",  "Water Damage / Leak"),
+            new MaintenanceCategoryEntity("safety",        "Safety"),
+            new MaintenanceCategoryEntity("other",         "Other")
+        );
+    }
+
+    private List<MaintenanceIssueTemplateEntity> buildIssueTemplates() {
+        List<MaintenanceIssueTemplateEntity> issues = new ArrayList<>();
+
+        // Plumbing
+        issues.add(issue("plumbing", "leaking_faucet",  "Leaking faucet",                         "The faucet is leaking or dripping.",                           "MEDIUM"));
+        issues.add(issue("plumbing", "clogged_sink",    "Clogged sink drain",                     "Water is draining slowly or not draining at all.",             "MEDIUM"));
+        issues.add(issue("plumbing", "toilet_running",  "Toilet running continuously",            "The toilet continues to run after flushing.",                  "MEDIUM"));
+        issues.add(issue("plumbing", "water_heater",    "Water heater not producing hot water",   "Hot water is unavailable or inconsistent.",                    "HIGH"));
+        issues.add(issue("plumbing", "pipe_leak",       "Pipe leak",                              "Water leaking from pipes under sink or in walls.",             "HIGH"));
+        issues.add(issue("plumbing", "other",           "Other",                                  "Other plumbing issue not listed above.",                       "MEDIUM"));
+
+        // Electrical
+        issues.add(issue("electrical", "light_fixture",      "Light fixture not working",          "The light fixture does not turn on.",                         "MEDIUM"));
+        issues.add(issue("electrical", "outlet_not_working", "Electrical outlet not working",      "The outlet does not supply power.",                           "MEDIUM"));
+        issues.add(issue("electrical", "breaker_tripping",   "Circuit breaker keeps tripping",     "The breaker trips repeatedly.",                               "HIGH"));
+        issues.add(issue("electrical", "smoke_detector",     "Smoke detector chirping",            "Smoke detector beeping or malfunctioning.",                   "HIGH"));
+        issues.add(issue("electrical", "other",              "Other",                              "Other electrical issue not listed above.",                    "MEDIUM"));
+
+        // HVAC
+        issues.add(issue("hvac", "ac_not_cooling",    "Air conditioner not cooling",   "AC system is running but not cooling the unit.",  "HIGH"));
+        issues.add(issue("hvac", "heater_not_working","Heater not working",            "Heating system not producing heat.",             "HIGH"));
+        issues.add(issue("hvac", "thermostat_issue",  "Thermostat malfunction",        "Thermostat not responding or inaccurate.",        "MEDIUM"));
+        issues.add(issue("hvac", "other",             "Other",                         "Other HVAC issue not listed above.",             "MEDIUM"));
+
+        // Appliances
+        issues.add(issue("appliances", "refrigerator", "Refrigerator not cooling",   "Refrigerator is running but not keeping food cold.",  "HIGH"));
+        issues.add(issue("appliances", "dishwasher",   "Dishwasher not draining",    "Dishwasher is not draining water properly.",          "MEDIUM"));
+        issues.add(issue("appliances", "washer",       "Washer not spinning",        "Washing machine drum not spinning.",                  "MEDIUM"));
+        issues.add(issue("appliances", "dryer",        "Dryer not heating",          "Dryer runs but does not generate heat.",              "MEDIUM"));
+        issues.add(issue("appliances", "other",        "Other",                      "Other appliance issue not listed above.",             "MEDIUM"));
+
+        // Doors / Windows
+        issues.add(issue("doors_windows", "lock_issue",    "Door lock not working",              "Door lock does not engage properly.",                  "HIGH"));
+        issues.add(issue("doors_windows", "window_stuck",  "Window not opening or closing",      "Window is stuck or difficult to operate.",             "MEDIUM"));
+        issues.add(issue("doors_windows", "sliding_door",  "Sliding door off track",             "Sliding door is misaligned or stuck.",                 "MEDIUM"));
+        issues.add(issue("doors_windows", "other",         "Other",                              "Other door or window issue not listed above.",         "MEDIUM"));
+
+        // Walls / Floors / Ceiling
+        issues.add(issue("interior", "drywall_damage",  "Drywall damage",            "Hole, dent, or damage in wall.",                        "LOW"));
+        issues.add(issue("interior", "ceiling_stain",   "Water stain on ceiling",    "Visible water damage or discoloration on ceiling.",     "HIGH"));
+        issues.add(issue("interior", "floor_damage",    "Floor damage",              "Cracked tile, loose boards, or damaged flooring.",      "MEDIUM"));
+        issues.add(issue("interior", "other",           "Other",                     "Other interior issue not listed above.",                "MEDIUM"));
+
+        // Pest Control
+        issues.add(issue("pest_control", "ants",        "Ant infestation",     "Ants observed in the apartment.",     "MEDIUM"));
+        issues.add(issue("pest_control", "cockroaches", "Cockroach sighting",  "Cockroaches seen in the unit.",        "HIGH"));
+        issues.add(issue("pest_control", "rodents",     "Rodent sighting",     "Mice or rats observed in the unit.",   "HIGH"));
+        issues.add(issue("pest_control", "other",       "Other",               "Other pest issue not listed above.",   "MEDIUM"));
+
+        // Water Damage / Leak
+        issues.add(issue("water_damage", "ceiling_leak", "Water leaking from ceiling", "Active water leak from ceiling.",           "EMERGENCY"));
+        issues.add(issue("water_damage", "wall_leak",    "Water leaking from wall",    "Water visible coming from wall.",           "EMERGENCY"));
+        issues.add(issue("water_damage", "flooding",     "Flooding in unit",           "Standing water inside the apartment.",      "EMERGENCY"));
+        issues.add(issue("water_damage", "other",        "Other",                      "Other water damage issue not listed above.", "HIGH"));
+
+        // Safety
+        issues.add(issue("safety", "gas_smell",     "Gas smell detected",    "Possible gas leak detected.",                          "EMERGENCY"));
+        issues.add(issue("safety", "broken_glass",  "Broken glass hazard",   "Broken window or glass posing safety risk.",           "HIGH"));
+        issues.add(issue("safety", "other",         "Other",                 "Other safety issue not listed above.",                 "HIGH"));
+
+        // Other
+        issues.add(issue("other", "general_request", "General maintenance request", "Maintenance issue not listed above.", "MEDIUM"));
+
+        return issues;
+    }
+
+    private MaintenanceIssueTemplateEntity issue(String categoryId, String id,
+                                                  String title, String description,
+                                                  String priority) {
+        return new MaintenanceIssueTemplateEntity(
+                new MaintenanceIssueTemplatePK(categoryId, id),
+                title, description, priority);
     }
 }

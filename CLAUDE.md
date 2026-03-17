@@ -41,11 +41,11 @@ taskkill //PID <pid> //F
 
 | Context | Package | Key aggregate |
 |---|---|---|
-| Property | `property` | `Property`, `PropertyUnit` |
+| Property | `property` | `Property`, `PropertyUnit`, `UnitRoom` |
 | Tenant | `tenant` | `Tenant` |
 | Leasing | `leasing` | `Lease` |
 | Payment | `payment` | `Payment` |
-| Maintenance | `maintenance` | `MaintenanceRequest` |
+| Maintenance | `maintenance` | `MaintenanceRequest`, `MaintenanceCategory` |
 
 Each context follows the same internal layout:
 ```
@@ -147,6 +147,26 @@ Two denormalised projection tables maintained by `LeaseProjectionHandler` (`@Eve
 
 Spring Data Cassandra maps `camelCase` field names to **all-lowercase** column names by default (e.g. `tenantId` → `tenantid`). All snake_case columns **must** have an explicit `@Column("snake_case_name")` annotation on the entity field.
 
+### Composite primary key pattern
+
+When a table is partitioned by a foreign-key column (e.g. `maintenance_issue_templates` partitioned by `category_id`), use a `@PrimaryKeyClass`:
+
+```java
+@PrimaryKeyClass
+public class MaintenanceIssueTemplatePK implements Serializable {
+    @PrimaryKeyColumn(name = "category_id", ordinal = 0, type = PrimaryKeyType.PARTITIONED)
+    private String categoryId;
+    @PrimaryKeyColumn(name = "id", ordinal = 1, type = PrimaryKeyType.CLUSTERED)
+    private String id;
+}
+```
+
+Repository derived queries then use the nested field name: `findByKeyCategoryId(String categoryId)`, `deleteByKeyCategoryId(String categoryId)`. This enables single-partition bulk reads and deletes without `ALLOW FILTERING`.
+
+### Manual mapper rule
+
+Use a plain `@Component` class (not MapStruct `@Mapper`) when domain object assembly requires **more than one entity source** (e.g. assembling `MaintenanceCategory` from a category row plus a list of issue rows). MapStruct `@Mapper` is for straightforward 1:1 entity ↔ domain mappings.
+
 ---
 
 ## Key domain rules
@@ -154,6 +174,8 @@ Spring Data Cassandra maps `camelCase` field names to **all-lowercase** column n
 - **One non-terminal lease per unit**: a unit cannot have a new lease created while an ACTIVE or DRAFT lease already exists for it. Enforced in `LeaseApplicationService.createLease()` via `findNonTerminalLeaseByUnitId()`.
 - **Lease lifecycle**: `DRAFT → ACTIVE → EXPIRED | TERMINATED`. Activation emits `LeaseActivatedEvent`; termination emits `LeaseTerminatedEvent`; daily expiry policy emits `LeaseExpiredEvent`. Unit status changes (OCCUPIED / AVAILABLE) are driven by `UnitStatusSyncHandler` reacting to these events.
 - **Tenant status**: `INACTIVE → ACTIVE`. Tenants must exist before leases can reference them. `PATCH /api/v1/tenants/{id}/activate` activates an inactive tenant.
+- **Maintenance category IDs are slug strings** (e.g. `plumbing`, `leaking_faucet`), not UUIDs. Issue template IDs are unique within a category only — the composite key is `(category_id, id)`.
+- **Unit room display order** auto-resolves to the current count when not explicitly provided (append to end). Same pattern applies to room image display order.
 
 ---
 
@@ -174,7 +196,7 @@ Tenant National ID numbers (`national_id_no`) are 9-digit strings.
 - Spring Security WebFlux with JWT (JJWT 0.12.6).
 - JWT secret: `jwt.secret` (override via `JWT_SECRET` env var).
 - Token expiry: 24 h by default (`jwt.expiration-ms`).
-- Default seeded credentials: `admin` / `admin123`.
+- Default admin credentials: `admin` / `Admin@1234` (overridable via `ADMIN_USERNAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` env vars).
 
 ---
 
@@ -189,14 +211,26 @@ Tenant National ID numbers (`national_id_no`) are 9-digit strings.
 
 ## Data seeder
 
-`DataSeeder` (`@Profile("seed")`) seeds:
+There are two distinct seeders with different purposes:
+
+### `DataInitializer` (`shared/infrastructure/config/`)
+Runs on **every startup** via `@EventListener(ApplicationReadyEvent.class)`. Seeds the admin user and their default settings if the admin username does not yet exist. Idempotent — safe to leave active in any environment.
+
+- Creates admin user (`admin` / `Admin@1234` by default; overridable via env vars)
+- Seeds admin settings: theme `DARK`, currency `KES`, timezone `Africa/Nairobi`
+
+### `DataSeeder` (`@Profile("seed")`)
+Runs only when the `seed` profile is active. **Destructive** — truncates several tables before inserting. Use for dev/demo environments only.
+
+Seeds:
 - 2 Nairobi properties, 22 units, 20 Kenyan tenants
 - 3 years of leases (Year 1 & 2: EXPIRED, Year 3: ACTIVE for 15 tenants)
 - Monthly payments with realistic probabilistic outcomes
 - ~30 maintenance requests
 - Occupancy and rental history projection rows
+- 10 maintenance categories with 41 issue templates (each category includes a catch-all "Other" issue)
 
-**Idempotency**: the seeder truncates `leases`, `payments`, `maintenance_requests`, `tenant_occupied_unit`, and `unit_rental_history` before inserting. Properties, units, and tenants use deterministic UUIDs and upsert safely on re-runs.
+**Idempotency**: truncates `leases`, `payments`, `maintenance_requests`, `tenant_occupied_unit`, `unit_rental_history`, `maintenance_issue_templates`, and `maintenance_categories` before inserting. Properties, units, and tenants use deterministic UUIDs and upsert safely on re-runs.
 
 Simulation anchor date: `2026-03-15`. The seeder `Random` uses a fixed seed (42) for reproducible data.
 

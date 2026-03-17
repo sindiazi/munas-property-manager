@@ -128,6 +128,24 @@ CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status);
 
 -- ── MAINTENANCE Bounded Context ───────────────────────────────────────────────
 
+-- ── MAINTENANCE REFERENCE DATA (categories + issue templates) ────────────────
+
+CREATE TABLE IF NOT EXISTS maintenance_categories (
+    id   text PRIMARY KEY,
+    name text
+);
+
+-- Partitioned by category_id so all issues for a category are co-located.
+-- This allows a single partition read/delete when loading or replacing a category's issues.
+CREATE TABLE IF NOT EXISTS maintenance_issue_templates (
+    category_id text,
+    id          text,
+    title       text,
+    description text,
+    priority    text,
+    PRIMARY KEY (category_id, id)
+);
+
 CREATE TABLE IF NOT EXISTS maintenance_requests (
     id                  uuid PRIMARY KEY,
     property_id         uuid,

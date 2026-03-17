@@ -1,5 +1,8 @@
 package com.example.rentalmanager.shared.infrastructure.config;
 
+import com.example.rentalmanager.settings.application.port.output.UserSettingsPersistencePort;
+import com.example.rentalmanager.settings.domain.aggregate.UserSettings;
+import com.example.rentalmanager.settings.domain.valueobject.Theme;
 import com.example.rentalmanager.user.application.dto.command.CreateUserCommand;
 import com.example.rentalmanager.user.application.port.input.CreateUserUseCase;
 import com.example.rentalmanager.user.application.port.output.UserPersistencePort;
@@ -10,6 +13,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+
+import java.time.Instant;
 
 /**
  * Seeds a default admin user on first startup if no users exist.
@@ -24,9 +29,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DataInitializer {
 
-    private final UserPersistencePort userPersistencePort;
-    private final CreateUserUseCase   createUserUseCase;
-    private final Environment         env;
+    private final UserPersistencePort        userPersistencePort;
+    private final CreateUserUseCase          createUserUseCase;
+    private final UserSettingsPersistencePort settingsPersistencePort;
+    private final Environment                env;
 
     @EventListener(ApplicationReadyEvent.class)
     public void seedDefaultAdmin() {
@@ -42,7 +48,12 @@ public class DataInitializer {
                     }
                     log.info("Seeding default admin user '{}'", username);
                     return createUserUseCase.create(
-                            new CreateUserCommand(username, email, password, UserRole.ADMIN));
+                            new CreateUserCommand(username, email, password, UserRole.ADMIN))
+                            .flatMap(user -> {
+                                var settings = new UserSettings(
+                                        user.id(), "KES", Theme.DARK, "Africa/Nairobi", Instant.now());
+                                return settingsPersistencePort.save(settings);
+                            });
                 })
                 .doOnError(e -> log.error("Failed to seed admin user: {}", e.getMessage()))
                 .onErrorComplete()
