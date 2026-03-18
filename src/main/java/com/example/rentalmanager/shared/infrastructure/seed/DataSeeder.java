@@ -17,10 +17,14 @@ import com.example.rentalmanager.maintenance.infrastructure.persistence.entity.M
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceCategoryRepository;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceIssueTemplateRepository;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestR2dbcRepository;
-import com.example.rentalmanager.payment.domain.valueobject.PaymentStatus;
-import com.example.rentalmanager.payment.domain.valueobject.PaymentType;
-import com.example.rentalmanager.payment.infrastructure.persistence.entity.PaymentJpaEntity;
-import com.example.rentalmanager.payment.infrastructure.persistence.repository.PaymentR2dbcRepository;
+import com.example.rentalmanager.billing.domain.valueobject.InvoiceStatus;
+import com.example.rentalmanager.billing.domain.valueobject.InvoiceType;
+import com.example.rentalmanager.billing.domain.valueobject.PaymentMethod;
+import com.example.rentalmanager.billing.domain.valueobject.PaymentTransactionStatus;
+import com.example.rentalmanager.billing.infrastructure.persistence.entity.InvoiceEntity;
+import com.example.rentalmanager.billing.infrastructure.persistence.entity.PaymentEntity;
+import com.example.rentalmanager.billing.infrastructure.persistence.repository.InvoiceCassandraRepository;
+import com.example.rentalmanager.billing.infrastructure.persistence.repository.PaymentCassandraRepository;
 import com.example.rentalmanager.property.domain.valueobject.PropertyType;
 import com.example.rentalmanager.property.domain.valueobject.UnitStatus;
 import com.example.rentalmanager.property.infrastructure.persistence.entity.PropertyJpaEntity;
@@ -89,7 +93,8 @@ public class DataSeeder implements ApplicationRunner {
     private final PropertyUnitR2dbcRepository       unitRepo;
     private final TenantR2dbcRepository             tenantRepo;
     private final LeaseR2dbcRepository              leaseRepo;
-    private final PaymentR2dbcRepository            paymentRepo;
+    private final InvoiceCassandraRepository         invoiceRepo;
+    private final PaymentCassandraRepository         paymentRepo;
     private final MaintenanceRequestR2dbcRepository maintenanceRepo;
     private final MaintenanceCategoryRepository      categoryRepo;
     private final MaintenanceIssueTemplateRepository issueTemplateRepo;
@@ -116,7 +121,8 @@ public class DataSeeder implements ApplicationRunner {
         List<TenantJpaEntity>       tenants    = buildTenants();
 
         List<LeaseJpaEntity>          allLeases     = new ArrayList<>();
-        List<PaymentJpaEntity>        allPayments   = new ArrayList<>();
+        List<InvoiceEntity>           allInvoices   = new ArrayList<>();
+        List<PaymentEntity>           allPayments   = new ArrayList<>();
         List<TenantOccupiedUnitEntity> occupancies  = new ArrayList<>();
         List<UnitRentalHistoryEntity>  rentalHistory = new ArrayList<>();
 
@@ -131,7 +137,9 @@ public class DataSeeder implements ApplicationRunner {
                 LocalDate.of(2024, 3, 1), LocalDate.of(2025, 2, 28),
                 unit.getMonthlyRentAmount(), LeaseStatus.EXPIRED);
             allLeases.add(lease1);
-            allPayments.addAll(buildPayments(lease1, tenant.getId()));
+            List<InvoiceEntity> inv1 = buildInvoices(lease1, tenant.getId());
+            allInvoices.addAll(inv1);
+            inv1.forEach(inv -> allPayments.addAll(buildPaymentsForInvoice(inv)));
             rentalHistory.add(buildHistoryRow(lease1));
 
             if (i < 17) {
@@ -141,7 +149,9 @@ public class DataSeeder implements ApplicationRunner {
                     LocalDate.of(2025, 3, 1), LocalDate.of(2026, 2, 28),
                     unit.getMonthlyRentAmount(), LeaseStatus.EXPIRED);
                 allLeases.add(lease2);
-                allPayments.addAll(buildPayments(lease2, tenant.getId()));
+                List<InvoiceEntity> inv2 = buildInvoices(lease2, tenant.getId());
+                allInvoices.addAll(inv2);
+                inv2.forEach(inv -> allPayments.addAll(buildPaymentsForInvoice(inv)));
                 rentalHistory.add(buildHistoryRow(lease2));
 
                 if (i < 15) {
@@ -151,7 +161,9 @@ public class DataSeeder implements ApplicationRunner {
                         LocalDate.of(2026, 3, 1), LocalDate.of(2027, 2, 28),
                         unit.getMonthlyRentAmount(), LeaseStatus.ACTIVE);
                     allLeases.add(lease3);
-                    allPayments.addAll(buildPayments(lease3, tenant.getId()));
+                    List<InvoiceEntity> inv3 = buildInvoices(lease3, tenant.getId());
+                    allInvoices.addAll(inv3);
+                    inv3.forEach(inv -> allPayments.addAll(buildPaymentsForInvoice(inv)));
                     rentalHistory.add(buildHistoryRow(lease3));
                     // Active lease → tenant occupies the unit
                     occupancies.add(buildOccupancyRow(lease3, tenant.getId()));
@@ -168,10 +180,10 @@ public class DataSeeder implements ApplicationRunner {
         List<MaintenanceCategoryEntity>   categories    = buildCategories();
         List<MaintenanceIssueTemplateEntity> issueTemplates = buildIssueTemplates();
 
-        log.info("Seeding: {} properties, {} units, {} tenants, {} leases, {} payments, {} maintenance, " +
-                 "{} occupancy rows, {} rental history rows, {} categories, {} issue templates",
+        log.info("Seeding: {} properties, {} units, {} tenants, {} leases, {} invoices, {} payments, " +
+                 "{} maintenance, {} occupancy rows, {} rental history rows, {} categories, {} issue templates",
             properties.size(), units.size(), tenants.size(),
-            allLeases.size(), allPayments.size(), maintenance.size(),
+            allLeases.size(), allInvoices.size(), allPayments.size(), maintenance.size(),
             occupancies.size(), rentalHistory.size(),
             categories.size(), issueTemplates.size());
 
@@ -180,6 +192,7 @@ public class DataSeeder implements ApplicationRunner {
             .then(occupancyRepo.deleteAll())
             .then(maintenanceRepo.deleteAll())
             .then(paymentRepo.deleteAll())
+            .then(invoiceRepo.deleteAll())
             .then(leaseRepo.deleteAll())
             .then(issueTemplateRepo.deleteAll())
             .then(categoryRepo.deleteAll())
@@ -187,6 +200,7 @@ public class DataSeeder implements ApplicationRunner {
             .then(Flux.fromIterable(units).flatMap(unitRepo::save).then())
             .then(Flux.fromIterable(tenants).flatMap(tenantRepo::save).then())
             .then(Flux.fromIterable(allLeases).flatMap(leaseRepo::save).then())
+            .then(Flux.fromIterable(allInvoices).flatMap(invoiceRepo::save).then())
             .then(Flux.fromIterable(allPayments).flatMap(paymentRepo::save).then())
             .then(Flux.fromIterable(maintenance).flatMap(maintenanceRepo::save).then())
             .then(Flux.fromIterable(occupancies).flatMap(occupancyRepo::save).then())
@@ -398,74 +412,74 @@ public class DataSeeder implements ApplicationRunner {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Payments  (monthly rent for every month of each lease)
+    // Invoices  (monthly rent invoice for every month of each lease)
     // ─────────────────────────────────────────────────────────────────────────
 
-    private List<PaymentJpaEntity> buildPayments(LeaseJpaEntity lease, UUID tenantId) {
-        List<PaymentJpaEntity> payments = new ArrayList<>();
+    private List<InvoiceEntity> buildInvoices(LeaseJpaEntity lease, UUID tenantId) {
+        List<InvoiceEntity> invoices = new ArrayList<>();
         LocalDate month = lease.getStartDate();
 
         while (!month.isAfter(lease.getEndDate())) {
             LocalDate dueDate = month.withDayOfMonth(1);
-            payments.add(resolvePayment(lease, tenantId, dueDate));
+            invoices.add(resolveInvoice(lease, tenantId, dueDate));
             month = month.plusMonths(1);
         }
-        return payments;
+        return invoices;
     }
 
     /**
-     * Determines payment outcome based on whether the due date is in the past,
+     * Determines invoice outcome based on whether the due date is in the past,
      * the current month, or the future — with realistic probabilistic variation.
      *
      * <p>Past months: 78% on-time PAID, 12% late PAID, 5% PARTIALLY_PAID,
      * 3% OVERDUE, 2% CANCELLED.
      */
-    private PaymentJpaEntity resolvePayment(LeaseJpaEntity lease, UUID tenantId, LocalDate dueDate) {
+    private InvoiceEntity resolveInvoice(LeaseJpaEntity lease, UUID tenantId, LocalDate dueDate) {
         BigDecimal due = lease.getMonthlyRent();
 
         boolean isFuture      = dueDate.isAfter(TODAY);
         boolean isCurrentMonth = !dueDate.isAfter(TODAY) && dueDate.plusMonths(1).isAfter(TODAY);
 
         if (isFuture) {
-            return payment(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, PaymentStatus.PENDING);
+            return invoice(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, InvoiceStatus.PENDING);
         }
 
         if (isCurrentMonth) {
             // 60% chance the tenant has already paid for this month
             boolean alreadyPaid = rng.nextInt(10) < 6;
             return alreadyPaid
-                ? payment(lease, tenantId, dueDate, due, due, dueDate.plusDays(rng.nextInt(5)), PaymentStatus.PAID)
-                : payment(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, PaymentStatus.PENDING);
+                ? invoice(lease, tenantId, dueDate, due, due, dueDate.plusDays(rng.nextInt(5)), InvoiceStatus.PAID)
+                : invoice(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, InvoiceStatus.PENDING);
         }
 
         // Past month – weighted outcome
         int roll = rng.nextInt(100);
         if (roll < 78) {
             // On-time (paid within first 5 days of the month)
-            return payment(lease, tenantId, dueDate, due, due, dueDate.plusDays(rng.nextInt(5)), PaymentStatus.PAID);
+            return invoice(lease, tenantId, dueDate, due, due, dueDate.plusDays(rng.nextInt(5)), InvoiceStatus.PAID);
         } else if (roll < 90) {
             // Late (paid 6-15 days after the 1st)
-            return payment(lease, tenantId, dueDate, due, due, dueDate.plusDays(6 + rng.nextInt(10)), PaymentStatus.PAID);
+            return invoice(lease, tenantId, dueDate, due, due, dueDate.plusDays(6 + rng.nextInt(10)), InvoiceStatus.PAID);
         } else if (roll < 95) {
             // Partial payment (50–90% of amount due)
             BigDecimal partial = due
                 .multiply(BigDecimal.valueOf(0.5 + rng.nextDouble() * 0.4))
                 .setScale(2, RoundingMode.HALF_UP);
-            return payment(lease, tenantId, dueDate, due, partial, dueDate.plusDays(rng.nextInt(20)), PaymentStatus.PARTIALLY_PAID);
+            return invoice(lease, tenantId, dueDate, due, partial, dueDate.plusDays(rng.nextInt(20)), InvoiceStatus.PARTIALLY_PAID);
         } else if (roll < 98) {
             // Overdue – not paid at all
-            return payment(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, PaymentStatus.OVERDUE);
+            return invoice(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, InvoiceStatus.OVERDUE);
         } else {
             // Cancelled (e.g. billing error, credit applied)
-            return payment(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, PaymentStatus.CANCELLED);
+            return invoice(lease, tenantId, dueDate, due, BigDecimal.ZERO, null, InvoiceStatus.CANCELLED);
         }
     }
 
-    private PaymentJpaEntity payment(LeaseJpaEntity lease, UUID tenantId,
-                                      LocalDate dueDate, BigDecimal amountDue,
-                                      BigDecimal amountPaid, LocalDate paidDate,
-                                      PaymentStatus status) {
-        return PaymentJpaEntity.builder()
+    private InvoiceEntity invoice(LeaseJpaEntity lease, UUID tenantId,
+                                   LocalDate dueDate, BigDecimal amountDue,
+                                   BigDecimal amountPaid, LocalDate paidDate,
+                                   InvoiceStatus status) {
+        return InvoiceEntity.builder()
             .id(UUID.randomUUID())
             .leaseId(lease.getId())
             .tenantId(tenantId)
@@ -475,9 +489,64 @@ public class DataSeeder implements ApplicationRunner {
             .dueDate(dueDate)
             .paidDate(paidDate)
             .status(status)
-            .type(PaymentType.RENT)
+            .type(InvoiceType.RENT)
             .createdAt(dueDate.atStartOfDay().toInstant(ZoneOffset.UTC))
             .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Payment transactions  (one COMPLETED payment per PAID or PARTIALLY_PAID invoice)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Generates payment transaction rows for an invoice based on its status:
+     * <ul>
+     *   <li>PAID → one COMPLETED payment for the full amount due</li>
+     *   <li>PARTIALLY_PAID → one COMPLETED payment for the partial amount paid</li>
+     *   <li>OVERDUE / CANCELLED / PENDING → no payments</li>
+     * </ul>
+     * Method is 70% MPESA / 30% CASH, mirroring Kenyan payment habits.
+     */
+    List<PaymentEntity> buildPaymentsForInvoice(InvoiceEntity invoice) {
+        if (invoice.getStatus() != InvoiceStatus.PAID
+                && invoice.getStatus() != InvoiceStatus.PARTIALLY_PAID) {
+            return List.of();
+        }
+
+        BigDecimal txAmount = invoice.getAmountPaid();
+        if (txAmount == null || txAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+
+        LocalDate  paymentDate = invoice.getPaidDate() != null ? invoice.getPaidDate() : invoice.getDueDate();
+        boolean    isMpesa     = rng.nextInt(10) < 7; // 70% MPESA
+        PaymentMethod method   = isMpesa ? PaymentMethod.MPESA : PaymentMethod.CASH;
+        String     reference   = isMpesa ? generateMpesaReceipt() : null;
+
+        PaymentEntity payment = PaymentEntity.builder()
+            .id(UUID.randomUUID())
+            .invoiceId(invoice.getId())
+            .tenantId(invoice.getTenantId())
+            .amount(txAmount)
+            .currencyCode(CURRENCY)
+            .method(method)
+            .status(PaymentTransactionStatus.COMPLETED)
+            .reference(reference)
+            .paymentDate(paymentDate)
+            .createdAt(paymentDate.atStartOfDay().toInstant(ZoneOffset.UTC))
+            .build();
+
+        return List.of(payment);
+    }
+
+    /** Generates a realistic M-Pesa receipt number (e.g. QK4ABC1234). */
+    private String generateMpesaReceipt() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
+        var sb = new StringBuilder(10);
+        for (int i = 0; i < 10; i++) {
+            sb.append(chars.charAt(rng.nextInt(chars.length())));
+        }
+        return sb.toString();
     }
 
     // ─────────────────────────────────────────────────────────────────────────

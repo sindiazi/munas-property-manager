@@ -13,7 +13,7 @@ The system models five independent bounded contexts:
 | **Property** | Manage properties, rentable units (status, availability), and unit room galleries |
 | **Tenant** | Register and manage tenant profiles and activation status |
 | **Leasing** | Handle lease agreement lifecycle (DRAFT → ACTIVE → EXPIRED/TERMINATED) |
-| **Payment** | Track rent payments with partial payment support and overdue detection |
+| **Billing** | Manage invoices (billing obligations) and payment transactions (cash/M-Pesa/card) with auto-generation from lease events |
 | **Maintenance** | Manage maintenance requests and the reference catalogue of categories and issue templates |
 
 Bounded contexts communicate exclusively through domain events — there are no direct object references across context boundaries, only UUID references.
@@ -68,7 +68,7 @@ REST Controller
 
 All domain events are immutable `record` types implementing a `sealed DomainEvent` interface. Events are published by the application service after successful persistence. This enables exhaustive pattern matching and provides a foundation for event sourcing or event-driven cross-context workflows.
 
-Examples: `LeaseActivatedEvent`, `LeaseTerminatedEvent`, `LeaseExpiredEvent`, `PaymentReceivedEvent`, `MaintenanceRequestStatusChangedEvent`, `MaintenanceCategoryCreatedEvent`, `MaintenanceIssueTemplateAddedEvent`
+Examples: `LeaseActivatedEvent`, `LeaseTerminatedEvent`, `LeaseExpiredEvent`, `InvoiceCreatedEvent`, `InvoiceSettledEvent`, `PaymentRecordedEvent`, `MaintenanceRequestStatusChangedEvent`, `MaintenanceCategoryCreatedEvent`, `MaintenanceIssueTemplateAddedEvent`
 
 ### CQRS Read Projections
 
@@ -93,7 +93,7 @@ src/main/java/com/example/rentalmanager/
 ├── tenant/
 ├── leasing/
 │   └── infrastructure/projection/   # LeaseProjectionHandler (CQRS event listener)
-├── payment/
+├── billing/
 ├── maintenance/
 └── shared/
     ├── domain/          # AggregateRoot base class, DomainEvent sealed interface
@@ -169,7 +169,7 @@ MPESA_CONSUMER_KEY=<Daraja app consumer key>
 MPESA_CONSUMER_SECRET=<Daraja app consumer secret>
 MPESA_SHORT_CODE=<PayBill shortcode, default: 174379 sandbox>
 MPESA_PASSKEY=<Daraja passkey>
-MPESA_CALLBACK_URL=https://<ngrok-or-public-url>/api/v1/payments/mpesa/callback
+MPESA_CALLBACK_URL=https://<ngrok-or-public-url>/api/v1/invoices/payments/mpesa/callback
 MPESA_BASE_URL=https://sandbox.safaricom.co.ke   # or https://api.safaricom.co.ke for production
 ```
 
@@ -236,20 +236,25 @@ Room types: `LIVING_ROOM`, `BEDROOM`, `KITCHEN`, `BATHROOM`, `FLOOR_PLAN`. Write
 
 Category and issue IDs are human-readable slugs (e.g. `plumbing`, `leaking_faucet`). Write operations require `ADMIN` or `PROPERTY_MANAGER` role. Reads are open to all authenticated users.
 
-### Payments
+### Invoices
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/payments` | JWT | Create a payment record |
-| `GET` | `/api/v1/payments` | JWT | List all payments |
-| `GET` | `/api/v1/payments/{id}` | JWT | Get payment by ID |
-| `PATCH` | `/api/v1/payments/{id}/receive` | JWT | Manually record a payment |
+| `POST` | `/api/v1/invoices` | JWT | Create an invoice manually (one-off fees) |
+| `GET` | `/api/v1/invoices` | JWT | List all invoices |
+| `GET` | `/api/v1/invoices/{id}` | JWT | Get invoice by ID |
+| `GET` | `/api/v1/invoices/lease/{leaseId}` | JWT | List invoices for a lease |
+| `GET` | `/api/v1/invoices/tenant/{tenantId}` | JWT | List invoices for a tenant |
+| `POST` | `/api/v1/invoices/{id}/payments/cash` | JWT | Record a cash payment against an invoice |
+| `GET` | `/api/v1/invoices/{id}/payments` | JWT | List payment transactions for an invoice |
+
+Invoices are auto-generated on `LeaseActivatedEvent` (RENT + SECURITY_DEPOSIT) and by a monthly cron policy (1st of each month, idempotent).
 
 #### M-Pesa STK Push
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/api/v1/payments/mpesa` | JWT (ADMIN/PM) | Initiate STK Push — creates payment + triggers Daraja prompt on customer's phone; returns 202 with `checkoutRequestId` |
-| `POST` | `/api/v1/payments/mpesa/callback` | **None** | Daraja posts callback here on success/failure; always returns 200 |
-| `GET` | `/api/v1/payments/{id}/mpesa/status` | JWT | Poll Daraja Query API for live transaction status |
+| `POST` | `/api/v1/invoices/{id}/payments/mpesa` | JWT (ADMIN/PM) | Initiate STK Push — records a pending payment transaction against the invoice; triggers Daraja prompt on customer's phone; returns 202 |
+| `POST` | `/api/v1/invoices/payments/mpesa/callback` | **None** | Daraja posts callback here on success/failure; always returns 200 |
+| `GET` | `/api/v1/invoices/payments/mpesa/{paymentTransactionId}/status` | JWT | Poll Daraja Query API for live transaction status |
 
 ### Maintenance
 Full CRUD via `/api/v1/maintenance`. See Swagger UI for details.
@@ -287,13 +292,13 @@ The `seed` profile loads:
 - **2 Nairobi properties**: Kilimani Court (12 units) and Westlands Residences (10 units)
 - **20 Kenyan tenants** with encrypted National ID numbers
 - **3 years of leases**: Year 1 & 2 EXPIRED, Year 3 ACTIVE (15 tenants)
-- **Monthly payments** with realistic outcomes (78% on-time, 12% late, 5% partial, 3% overdue, 2% cancelled)
+- **Monthly invoices** with realistic outcomes (78% on-time, 12% late, 5% partial, 3% overdue, 2% cancelled) plus matching **payment transaction rows** for PAID and PARTIALLY_PAID invoices (70% M-Pesa, 30% cash)
 - **~30 maintenance requests** spread across 2 years
 - **CQRS projection rows** for current occupancy and rental history
 - **10 maintenance categories** with 41 issue templates (each category includes a catch-all "Other" issue)
 
 Units 0–14 are OCCUPIED; units 15–21 are AVAILABLE.
 
-The seeder is idempotent: it truncates leases, payments, maintenance requests, projection tables, and maintenance reference data before each run. Properties, units, and tenants use deterministic UUIDs and upsert safely.
+The seeder is idempotent: it truncates leases, invoices, payment transactions, maintenance requests, projection tables, and maintenance reference data before each run. Properties, units, and tenants use deterministic UUIDs and upsert safely.
 
 **Default admin settings** (seeded by `DataInitializer` on first startup): theme `DARK`, currency `KES`, timezone `Africa/Nairobi`.
