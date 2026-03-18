@@ -1,6 +1,6 @@
 package com.example.rentalmanager.tenant.application.service;
 
-import com.example.rentalmanager.shared.infrastructure.security.SsnEncryptionService;
+import com.example.rentalmanager.shared.domain.SsnEncryptionPort;
 import com.example.rentalmanager.tenant.application.dto.command.RegisterTenantCommand;
 import com.example.rentalmanager.tenant.application.dto.command.UpdateTenantCommand;
 import com.example.rentalmanager.tenant.application.dto.response.TenantResponse;
@@ -35,7 +35,7 @@ public class TenantApplicationService implements RegisterTenantUseCase, GetTenan
     private final TenantPersistencePort persistencePort;
     private final TenantActiveLeasePort activeLeasePort;
     private final DomainEventPublisher  eventPublisher;
-    private final SsnEncryptionService  ssnEncryptionService;
+    private final SsnEncryptionPort     ssnEncryptionService;
 
     @Override
     @Transactional

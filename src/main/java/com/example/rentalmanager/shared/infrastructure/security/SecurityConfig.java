@@ -79,6 +79,8 @@ public class SecurityConfig {
                         .pathMatchers(HttpMethod.POST,   "/api/v1/maintenance/categories/*/issues").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .pathMatchers(HttpMethod.PUT,    "/api/v1/maintenance/categories/*/issues/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
                         .pathMatchers(HttpMethod.DELETE, "/api/v1/maintenance/categories/*/issues/*").hasAnyRole("ADMIN", "PROPERTY_MANAGER")
+                        // M-Pesa callback — Daraja posts here without auth
+                        .pathMatchers(HttpMethod.POST, "/api/v1/payments/mpesa/callback").permitAll()
                         .anyExchange().authenticated()
                 )
                 .addFilterAt(jwtAuthenticationWebFilter(jwtAuthenticationConverter), SecurityWebFiltersOrder.AUTHENTICATION)

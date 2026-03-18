@@ -1,5 +1,7 @@
 package com.example.rentalmanager.payment.domain.aggregate;
 
+import com.example.rentalmanager.payment.domain.event.MpesaPaymentConfirmedEvent;
+import com.example.rentalmanager.payment.domain.event.MpesaPaymentFailedEvent;
 import com.example.rentalmanager.payment.domain.event.PaymentCreatedEvent;
 import com.example.rentalmanager.payment.domain.event.PaymentOverdueEvent;
 import com.example.rentalmanager.payment.domain.event.PaymentReceivedEvent;
@@ -100,6 +102,20 @@ public class Payment extends AggregateRoot<PaymentId> {
 
     public void cancel() {
         this.status = PaymentStatus.CANCELLED;
+    }
+
+    /** Records an M-Pesa-confirmed payment and emits a gateway-specific event. */
+    public void receiveViaMpesa(Money received, LocalDate paymentDate,
+                                String mpesaReceiptNumber, String phoneNumber) {
+        receive(received, paymentDate);
+        registerEvent(new MpesaPaymentConfirmedEvent(UUID.randomUUID(), Instant.now(),
+                id.value(), tenantId, mpesaReceiptNumber, received.amount(), phoneNumber));
+    }
+
+    /** Records an M-Pesa failure or cancellation and emits a gateway-specific event. */
+    public void failedViaMpesa(int resultCode, String resultDesc) {
+        registerEvent(new MpesaPaymentFailedEvent(UUID.randomUUID(), Instant.now(),
+                id.value(), tenantId, resultCode, resultDesc));
     }
 
     /** Outstanding balance remaining. */

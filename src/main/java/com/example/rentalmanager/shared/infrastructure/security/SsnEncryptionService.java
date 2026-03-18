@@ -1,5 +1,6 @@
 package com.example.rentalmanager.shared.infrastructure.security;
 
+import com.example.rentalmanager.shared.domain.SsnEncryptionPort;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +23,7 @@ import java.util.Base64;
  * so queries can be performed without decrypting every row.
  */
 @Service
-public class SsnEncryptionService {
+public class SsnEncryptionService implements SsnEncryptionPort {
 
     private final SecretKeySpec encryptionKey;
     private final SecretKeySpec hmacKey;

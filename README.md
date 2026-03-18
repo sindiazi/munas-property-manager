@@ -163,6 +163,16 @@ The schema is created automatically on startup (`create_if_not_exists`).
 
 **Default credentials:** `admin` / `Admin@1234`
 
+**M-Pesa environment variables** (required for STK Push):
+```bash
+MPESA_CONSUMER_KEY=<Daraja app consumer key>
+MPESA_CONSUMER_SECRET=<Daraja app consumer secret>
+MPESA_SHORT_CODE=<PayBill shortcode, default: 174379 sandbox>
+MPESA_PASSKEY=<Daraja passkey>
+MPESA_CALLBACK_URL=https://<ngrok-or-public-url>/api/v1/payments/mpesa/callback
+MPESA_BASE_URL=https://sandbox.safaricom.co.ke   # or https://api.safaricom.co.ke for production
+```
+
 ---
 
 ## API Overview
@@ -226,8 +236,23 @@ Room types: `LIVING_ROOM`, `BEDROOM`, `KITCHEN`, `BATHROOM`, `FLOOR_PLAN`. Write
 
 Category and issue IDs are human-readable slugs (e.g. `plumbing`, `leaking_faucet`). Write operations require `ADMIN` or `PROPERTY_MANAGER` role. Reads are open to all authenticated users.
 
-### Payments & Maintenance
-Full CRUD via `/api/v1/payments` and `/api/v1/maintenance`. See Swagger UI for details.
+### Payments
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/payments` | JWT | Create a payment record |
+| `GET` | `/api/v1/payments` | JWT | List all payments |
+| `GET` | `/api/v1/payments/{id}` | JWT | Get payment by ID |
+| `PATCH` | `/api/v1/payments/{id}/receive` | JWT | Manually record a payment |
+
+#### M-Pesa STK Push
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/payments/mpesa` | JWT (ADMIN/PM) | Initiate STK Push — creates payment + triggers Daraja prompt on customer's phone; returns 202 with `checkoutRequestId` |
+| `POST` | `/api/v1/payments/mpesa/callback` | **None** | Daraja posts callback here on success/failure; always returns 200 |
+| `GET` | `/api/v1/payments/{id}/mpesa/status` | JWT | Poll Daraja Query API for live transaction status |
+
+### Maintenance
+Full CRUD via `/api/v1/maintenance`. See Swagger UI for details.
 
 ---
 

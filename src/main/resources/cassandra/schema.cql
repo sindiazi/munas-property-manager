@@ -224,6 +224,23 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 CREATE INDEX IF NOT EXISTS idx_users_email    ON users (email);
 
+-- ── MPESA TRANSACTIONS (Payment Bounded Context) ─────────────────────────────
+
+CREATE TABLE IF NOT EXISTS mpesa_transactions (
+    checkout_request_id  text PRIMARY KEY,
+    merchant_request_id  text,
+    payment_id           uuid,
+    tenant_id            uuid,
+    phone_number         text,
+    amount               decimal,
+    status               text,
+    mpesa_receipt_number text,
+    initiated_at         timestamp,
+    completed_at         timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_mpesa_tx_payment ON mpesa_transactions (payment_id);
+
 -- ── SETTINGS Bounded Context ──────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS user_settings (
