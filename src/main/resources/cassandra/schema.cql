@@ -106,9 +106,9 @@ CREATE INDEX IF NOT EXISTS idx_leases_tenant ON leases (tenant_id);
 CREATE INDEX IF NOT EXISTS idx_leases_unit   ON leases (unit_id);
 CREATE INDEX IF NOT EXISTS idx_leases_status ON leases (status);
 
--- ── PAYMENT Bounded Context ───────────────────────────────────────────────────
+-- ── BILLING Bounded Context ───────────────────────────────────────────────────
 
-CREATE TABLE IF NOT EXISTS payments (
+CREATE TABLE IF NOT EXISTS invoices (
     id            uuid PRIMARY KEY,
     lease_id      uuid,
     tenant_id     uuid,
@@ -122,9 +122,24 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at    timestamp
 );
 
-CREATE INDEX IF NOT EXISTS idx_payments_lease  ON payments (lease_id);
-CREATE INDEX IF NOT EXISTS idx_payments_tenant ON payments (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_payments_status ON payments (status);
+CREATE INDEX IF NOT EXISTS idx_invoices_lease  ON invoices (lease_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_tenant ON invoices (tenant_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (status);
+
+CREATE TABLE IF NOT EXISTS payments (
+    id            uuid PRIMARY KEY,
+    invoice_id    uuid,
+    tenant_id     uuid,
+    amount        decimal,
+    currency_code text,
+    method        text,
+    status        text,
+    reference     text,
+    payment_date  date,
+    created_at    timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments (invoice_id);
 
 -- ── MAINTENANCE Bounded Context ───────────────────────────────────────────────
 
@@ -224,22 +239,22 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_username ON users (username);
 CREATE INDEX IF NOT EXISTS idx_users_email    ON users (email);
 
--- ── MPESA TRANSACTIONS (Payment Bounded Context) ─────────────────────────────
+-- ── MPESA TRANSACTIONS (Billing Bounded Context) ─────────────────────────────
 
 CREATE TABLE IF NOT EXISTS mpesa_transactions (
-    checkout_request_id  text PRIMARY KEY,
-    merchant_request_id  text,
-    payment_id           uuid,
-    tenant_id            uuid,
-    phone_number         text,
-    amount               decimal,
-    status               text,
-    mpesa_receipt_number text,
-    initiated_at         timestamp,
-    completed_at         timestamp
+    checkout_request_id    text PRIMARY KEY,
+    merchant_request_id    text,
+    payment_transaction_id uuid,
+    tenant_id              uuid,
+    phone_number           text,
+    amount                 decimal,
+    status                 text,
+    mpesa_receipt_number   text,
+    initiated_at           timestamp,
+    completed_at           timestamp
 );
 
-CREATE INDEX IF NOT EXISTS idx_mpesa_tx_payment ON mpesa_transactions (payment_id);
+CREATE INDEX IF NOT EXISTS idx_mpesa_tx_payment ON mpesa_transactions (payment_transaction_id);
 
 -- ── SETTINGS Bounded Context ──────────────────────────────────────────────────
 
