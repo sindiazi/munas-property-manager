@@ -1,0 +1,21 @@
+spring:
+  cassandra:
+    contact-points: ${CASSANDRA_HOST}      # cassandra.{region}.amazonaws.com
+    port: ${CASSANDRA_PORT:9142}           # Keyspaces TLS port
+    keyspace-name: ${CASSANDRA_KEYSPACE:rental_manager}
+    local-datacenter: ${CASSANDRA_DC}      # AWS region, e.g. eu-west-1
+    username: ${KEYSPACES_USERNAME}
+    password: ${KEYSPACES_PASSWORD}
+    schema-action: none                    # Keyspaces does not support auto-DDL
+    ssl:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  shutdown: graceful
+
+logging:
+  level:
+    com.example.rentalmanager: INFO
+    com.datastax.oss.driver.internal.core.tracker.RequestLogger: WARN
