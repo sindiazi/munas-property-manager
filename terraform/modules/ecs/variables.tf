@@ -1,0 +1,11 @@
+variable "app_name"             { type = string }
+variable "env"                  { type = string }
+variable "region"               { type = string }
+variable "vpc_id"               { type = string }
+variable "subnet_ids"           { type = list(string) }
+variable "ecs_sg_id"            { type = string }
+variable "ecr_url"              { type = string }
+variable "image_tag"            { type = string }
+variable "alb_target_group_arn" { type = string }
+variable "keyspace_arn"         { type = string }
+variable "secrets_arns"         { type = map(string) }

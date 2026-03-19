@@ -1,0 +1,57 @@
+name: Schema — Keyspaces Migration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/main/resources/cassandra/**'
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+jobs:
+  migrate:
+    name: Apply Keyspaces Schema
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.OIDC_ROLE_ARN }}
+          aws-region:     ${{ env.AWS_REGION }}
+
+      - name: Install cqlsh
+        run: pip install cqlsh
+
+      - name: Download Amazon RootCA certificate
+        run: |
+          curl -o /tmp/sf-class2-root.crt \
+            https://certs.secureserver.net/repository/sf-class2-root.crt
+
+      - name: Retrieve Keyspaces credentials from Secrets Manager
+        run: |
+          KEYSPACES_USERNAME=$(aws secretsmanager get-secret-value \
+            --secret-id "munas-property-manager/prod/KEYSPACES_USERNAME" \
+            --query SecretString --output text)
+          KEYSPACES_PASSWORD=$(aws secretsmanager get-secret-value \
+            --secret-id "munas-property-manager/prod/KEYSPACES_PASSWORD" \
+            --query SecretString --output text)
+          echo "KEYSPACES_USERNAME=$KEYSPACES_USERNAME" >> $GITHUB_ENV
+          echo "KEYSPACES_PASSWORD=$KEYSPACES_PASSWORD" >> $GITHUB_ENV
+
+      - name: Apply schema to Amazon Keyspaces
+        run: |
+          cqlsh "cassandra.$AWS_REGION.amazonaws.com" 9142 \
+            --ssl \
+            --ssl-certfile /tmp/sf-class2-root.crt \
+            -u "$KEYSPACES_USERNAME" \
+            -p "$KEYSPACES_PASSWORD" \
+            -f src/main/resources/cassandra/schema-keyspaces.cql
