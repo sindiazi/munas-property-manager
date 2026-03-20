@@ -5,7 +5,7 @@
 -- Keyspaces-specific adjustments vs schema.cql:
 --   - No CREATE KEYSPACE statement (Keyspaces manages the keyspace via console/Terraform)
 --   - Replication and durable_writes settings are managed by AWS, not CQL
---   - All table DDL and CREATE INDEX statements are unchanged (Keyspaces-compatible)
+--   - CREATE INDEX statements are omitted: Amazon Keyspaces does not support secondary indexes
 --
 -- Apply via CI migration job:
 --   cqlsh cassandra.{region}.amazonaws.com 9142 \
@@ -29,8 +29,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.properties (
     created_at timestamp
 );
 
-CREATE INDEX IF NOT EXISTS idx_properties_owner ON rental_manager.properties (owner_id);
-
 CREATE TABLE IF NOT EXISTS rental_manager.property_units (
     id                  uuid PRIMARY KEY,
     property_id         uuid,
@@ -43,9 +41,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.property_units (
     status              text
 );
 
-CREATE INDEX IF NOT EXISTS idx_units_property ON rental_manager.property_units (property_id);
-CREATE INDEX IF NOT EXISTS idx_units_status   ON rental_manager.property_units (status);
-
 -- ── UNIT ROOM GALLERY (Property Bounded Context) ─────────────────────────────
 
 CREATE TABLE IF NOT EXISTS rental_manager.unit_rooms (
@@ -56,8 +51,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.unit_rooms (
     display_order int
 );
 
-CREATE INDEX IF NOT EXISTS idx_unit_rooms_unit ON rental_manager.unit_rooms (unit_id);
-
 CREATE TABLE IF NOT EXISTS rental_manager.unit_room_images (
     id            uuid PRIMARY KEY,
     room_id       uuid,
@@ -66,8 +59,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.unit_room_images (
     caption       text,
     uploaded_at   timestamp
 );
-
-CREATE INDEX IF NOT EXISTS idx_unit_room_images_room ON rental_manager.unit_room_images (room_id);
 
 -- ── TENANT Bounded Context ────────────────────────────────────────────────────
 
@@ -85,10 +76,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.tenants (
     national_id_no_hash text     -- HMAC-SHA-256 of normalised digits, used for equality lookups
 );
 
-CREATE INDEX IF NOT EXISTS idx_tenants_email              ON rental_manager.tenants (email);
-CREATE INDEX IF NOT EXISTS idx_tenants_status             ON rental_manager.tenants (status);
-CREATE INDEX IF NOT EXISTS idx_tenants_national_id_no     ON rental_manager.tenants (national_id_no_hash);
-
 -- ── LEASING Bounded Context ───────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS rental_manager.leases (
@@ -104,10 +91,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.leases (
     termination_reason text,
     created_at         timestamp
 );
-
-CREATE INDEX IF NOT EXISTS idx_leases_tenant ON rental_manager.leases (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_leases_unit   ON rental_manager.leases (unit_id);
-CREATE INDEX IF NOT EXISTS idx_leases_status ON rental_manager.leases (status);
 
 -- ── BILLING Bounded Context ───────────────────────────────────────────────────
 
@@ -125,10 +108,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.invoices (
     created_at    timestamp
 );
 
-CREATE INDEX IF NOT EXISTS idx_invoices_lease  ON rental_manager.invoices (lease_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_tenant ON rental_manager.invoices (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_invoices_status ON rental_manager.invoices (status);
-
 CREATE TABLE IF NOT EXISTS rental_manager.payments (
     id            uuid PRIMARY KEY,
     invoice_id    uuid,
@@ -141,8 +120,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.payments (
     payment_date  date,
     created_at    timestamp
 );
-
-CREATE INDEX IF NOT EXISTS idx_payments_invoice ON rental_manager.payments (invoice_id);
 
 -- ── MAINTENANCE Bounded Context ───────────────────────────────────────────────
 
@@ -176,10 +153,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.maintenance_requests (
     requested_at        timestamp,
     completed_at        timestamp
 );
-
-CREATE INDEX IF NOT EXISTS idx_maintenance_property ON rental_manager.maintenance_requests (property_id);
-CREATE INDEX IF NOT EXISTS idx_maintenance_tenant   ON rental_manager.maintenance_requests (tenant_id);
-CREATE INDEX IF NOT EXISTS idx_maintenance_status   ON rental_manager.maintenance_requests (status);
 
 -- ── CQRS READ PROJECTIONS (Leasing) ──────────────────────────────────────────
 
@@ -219,8 +192,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.unit_unavailability (
     created_at timestamp
 );
 
-CREATE INDEX IF NOT EXISTS idx_unavailability_unit ON rental_manager.unit_unavailability (unit_id);
-
 -- ── USER Bounded Context ──────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS rental_manager.users (
@@ -232,9 +203,6 @@ CREATE TABLE IF NOT EXISTS rental_manager.users (
     active       boolean,
     created_at   timestamp
 );
-
-CREATE INDEX IF NOT EXISTS idx_users_username ON rental_manager.users (username);
-CREATE INDEX IF NOT EXISTS idx_users_email    ON rental_manager.users (email);
 
 -- ── MPESA TRANSACTIONS (Billing Bounded Context) ─────────────────────────────
 
@@ -251,7 +219,17 @@ CREATE TABLE IF NOT EXISTS rental_manager.mpesa_transactions (
     completed_at           timestamp
 );
 
-CREATE INDEX IF NOT EXISTS idx_mpesa_tx_payment ON rental_manager.mpesa_transactions (payment_transaction_id);
+-- ── USER LOOKUP TABLES (Keyspaces-compatible alternative to secondary indexes) ─
+
+CREATE TABLE IF NOT EXISTS rental_manager.users_by_username (
+    username text PRIMARY KEY,
+    user_id  uuid
+);
+
+CREATE TABLE IF NOT EXISTS rental_manager.users_by_email (
+    email   text PRIMARY KEY,
+    user_id uuid
+);
 
 -- ── SETTINGS Bounded Context ──────────────────────────────────────────────────
 

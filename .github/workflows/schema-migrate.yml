@@ -33,8 +33,8 @@ jobs:
 
       - name: Download Amazon RootCA certificate
         run: |
-          curl -o /tmp/sf-class2-root.crt \
-            https://certs.secureserver.net/repository/sf-class2-root.crt
+          curl --retry 3 --retry-delay 5 -o /tmp/sf-class2-root.crt \
+            https://www.amazontrust.com/repository/AmazonRootCA1.pem
 
       - name: Retrieve Keyspaces credentials from Secrets Manager
         run: |
@@ -48,10 +48,11 @@ jobs:
           echo "KEYSPACES_PASSWORD=$KEYSPACES_PASSWORD" >> $GITHUB_ENV
 
       - name: Apply schema to Amazon Keyspaces
+        env:
+          SSL_CERTFILE: /tmp/sf-class2-root.crt
         run: |
           cqlsh "cassandra.$AWS_REGION.amazonaws.com" 9142 \
             --ssl \
-            --ssl-certfile /tmp/sf-class2-root.crt \
             -u "$KEYSPACES_USERNAME" \
             -p "$KEYSPACES_PASSWORD" \
             -f src/main/resources/cassandra/schema-keyspaces.cql

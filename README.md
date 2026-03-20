@@ -171,6 +171,9 @@ MPESA_SHORT_CODE=<PayBill shortcode, default: 174379 sandbox>
 MPESA_PASSKEY=<Daraja passkey>
 MPESA_CALLBACK_URL=https://<ngrok-or-public-url>/api/v1/invoices/payments/mpesa/callback
 MPESA_BASE_URL=https://sandbox.safaricom.co.ke   # or https://api.safaricom.co.ke for production
+
+# Production callback URL (requires HTTPS — see note below):
+# MPESA_CALLBACK_URL=https://<your-domain>/api/v1/invoices/payments/mpesa/callback
 ```
 
 ---
@@ -258,6 +261,123 @@ Invoices are auto-generated on `LeaseActivatedEvent` (RENT + SECURITY_DEPOSIT) a
 
 ### Maintenance
 Full CRUD via `/api/v1/maintenance`. See Swagger UI for details.
+
+---
+
+## Production Deployment
+
+### Infrastructure
+
+The production stack is provisioned with Terraform (`terraform/`) and runs on AWS:
+
+| Component | AWS Service |
+|---|---|
+| Container runtime | ECS Fargate — `munas-property-manager-prod-cluster` |
+| Container registry | ECR — `munas-property-manager-prod` |
+| Database | Amazon Keyspaces (managed Apache Cassandra) |
+| Load balancer | Application Load Balancer |
+| Secrets | AWS Secrets Manager |
+
+**Live URL:** `http://munas-property-manager-prod-alb-113235036.us-east-1.elb.amazonaws.com`
+
+### Normal deployment flow (CI/CD)
+
+Every push to `main` triggers `.github/workflows/ci.yml`:
+
+1. **Test** — runs `./mvnw test` on Java 25 (GitHub-hosted runner)
+2. **Build & Push** — builds the Docker image, tags it `sha-<git-sha>` and `latest`, pushes to ECR via OIDC (no long-lived keys)
+3. **Deploy** — runs `aws ecs update-service --force-new-deployment` and waits for service stability
+
+Pull requests run **tests only**. Image build and deploy happen only on merges to `main`.
+
+**Required GitHub Secrets:**
+
+| Secret | Value |
+|---|---|
+| `AWS_REGION` | `us-east-1` |
+| `AWS_ACCOUNT_ID` | Your 12-digit AWS account ID |
+| `OIDC_ROLE_ARN` | ARN of the IAM role GitHub Actions assumes via OIDC |
+
+### Infrastructure changes (Terraform)
+
+Infrastructure changes are managed by `.github/workflows/infra.yml`:
+
+- PRs touching `terraform/**`: runs `terraform plan` and posts the output as a PR comment
+- Merges to `main`: runs `terraform apply`
+- Can also be triggered manually via `workflow_dispatch`
+
+To plan/apply locally:
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+### Bootstrap: manually pushing a first image
+
+When the ECR repository is empty (e.g. after a fresh `terraform apply` before CI has run), ECS fails to start with `CannotPullContainerError`. To unblock:
+
+```bash
+# 1. Authenticate Docker to ECR
+aws ecr get-login-password --region us-east-1 \
+  | docker login --username AWS --password-stdin \
+    <account-id>.dkr.ecr.us-east-1.amazonaws.com
+
+# 2. Build the image (Maven wrapper must be present in the repo)
+docker build -t munas-property-manager-prod:latest .
+
+# 3. Tag and push to ECR
+ECR="<account-id>.dkr.ecr.us-east-1.amazonaws.com/munas-property-manager-prod"
+docker tag munas-property-manager-prod:latest "$ECR:latest"
+docker push "$ECR:latest"
+
+# 4. Force ECS to pick up the new image
+aws ecs update-service \
+  --cluster munas-property-manager-prod-cluster \
+  --service munas-property-manager-prod-service \
+  --force-new-deployment \
+  --region us-east-1
+
+aws ecs wait services-stable \
+  --cluster munas-property-manager-prod-cluster \
+  --services munas-property-manager-prod-service \
+  --region us-east-1
+```
+
+### Secrets Management
+
+Secrets live in AWS Secrets Manager and are injected into the ECS task as environment variables at startup:
+
+| Secret path | Env var | Notes |
+|---|---|---|
+| `munas-property-manager/prod/JWT_SECRET` | `JWT_SECRET` | Base64-encoded HMAC-SHA-256 signing key |
+| `munas-property-manager/prod/SSN_ENCRYPTION_KEY` | `SSN_ENCRYPTION_KEY` | Base64-encoded AES-256 key (must decode to exactly 32 bytes) |
+| `munas-property-manager/prod/KEYSPACES_USERNAME` | `KEYSPACES_USERNAME` | Amazon Keyspaces service-specific credentials username |
+| `munas-property-manager/prod/KEYSPACES_PASSWORD` | `KEYSPACES_PASSWORD` | Amazon Keyspaces service-specific credentials password |
+| `munas-property-manager/prod/MPESA_CONSUMER_KEY` | `MPESA_CONSUMER_KEY` | Daraja app consumer key |
+| `munas-property-manager/prod/MPESA_CONSUMER_SECRET` | `MPESA_CONSUMER_SECRET` | Daraja app consumer secret |
+| `munas-property-manager/prod/MPESA_SHORT_CODE` | `MPESA_SHORT_CODE` | M-Pesa PayBill short code |
+| `munas-property-manager/prod/MPESA_PASSKEY` | `MPESA_PASSKEY` | Daraja passkey |
+
+> **M-Pesa callback URL (production):** Safaricom Daraja requires HTTPS for the callback URL in the live environment. The current ALB only has an HTTP listener, so you must either attach an ACM certificate to an HTTPS listener (requires a custom domain) or put CloudFront in front of the ALB before going live with M-Pesa production credentials. The callback path is always `/api/v1/invoices/payments/mpesa/callback`.
+
+> **Gotcha:** Always store secret values **without trailing whitespace or carriage returns**. Values stored with `\r` or `\n` (common when copy-pasting on Windows) cause `SsnEncryptionService` and JWT validation to crash at startup. Use `printf '%s' "<value>"` when updating via CLI, or trim carefully in the console before saving.
+
+### IAM: Amazon Keyspaces access
+
+The ECS task authenticates to Amazon Keyspaces using SigV4 service-specific credentials for IAM user `munas-keyspaces-migration`. That user must have the `AmazonKeyspacesFullAccess` managed policy attached.
+
+To verify or fix:
+
+```bash
+aws iam list-attached-user-policies --user-name munas-keyspaces-migration
+# If empty:
+aws iam attach-user-policy \
+  --user-name munas-keyspaces-migration \
+  --policy-arn arn:aws:iam::aws:policy/AmazonKeyspacesFullAccess
+```
 
 ---
 
