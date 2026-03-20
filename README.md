@@ -171,6 +171,9 @@ MPESA_SHORT_CODE=<PayBill shortcode, default: 174379 sandbox>
 MPESA_PASSKEY=<Daraja passkey>
 MPESA_CALLBACK_URL=https://<ngrok-or-public-url>/api/v1/invoices/payments/mpesa/callback
 MPESA_BASE_URL=https://sandbox.safaricom.co.ke   # or https://api.safaricom.co.ke for production
+
+# Production callback URL (requires HTTPS — see note below):
+# MPESA_CALLBACK_URL=https://<your-domain>/api/v1/invoices/payments/mpesa/callback
 ```
 
 ---
@@ -292,7 +295,7 @@ Pull requests run **tests only**. Image build and deploy happen only on merges t
 | Secret | Value |
 |---|---|
 | `AWS_REGION` | `us-east-1` |
-| `AWS_ACCOUNT_ID` | `534686841968` |
+| `AWS_ACCOUNT_ID` | Your 12-digit AWS account ID |
 | `OIDC_ROLE_ARN` | ARN of the IAM role GitHub Actions assumes via OIDC |
 
 ### Infrastructure changes (Terraform)
@@ -320,13 +323,13 @@ When the ECR repository is empty (e.g. after a fresh `terraform apply` before CI
 # 1. Authenticate Docker to ECR
 aws ecr get-login-password --region us-east-1 \
   | docker login --username AWS --password-stdin \
-    534686841968.dkr.ecr.us-east-1.amazonaws.com
+    <account-id>.dkr.ecr.us-east-1.amazonaws.com
 
 # 2. Build the image (Maven wrapper must be present in the repo)
 docker build -t munas-property-manager-prod:latest .
 
 # 3. Tag and push to ECR
-ECR="534686841968.dkr.ecr.us-east-1.amazonaws.com/munas-property-manager-prod"
+ECR="<account-id>.dkr.ecr.us-east-1.amazonaws.com/munas-property-manager-prod"
 docker tag munas-property-manager-prod:latest "$ECR:latest"
 docker push "$ECR:latest"
 
@@ -357,6 +360,8 @@ Secrets live in AWS Secrets Manager and are injected into the ECS task as enviro
 | `munas-property-manager/prod/MPESA_CONSUMER_SECRET` | `MPESA_CONSUMER_SECRET` | Daraja app consumer secret |
 | `munas-property-manager/prod/MPESA_SHORT_CODE` | `MPESA_SHORT_CODE` | M-Pesa PayBill short code |
 | `munas-property-manager/prod/MPESA_PASSKEY` | `MPESA_PASSKEY` | Daraja passkey |
+
+> **M-Pesa callback URL (production):** Safaricom Daraja requires HTTPS for the callback URL in the live environment. The current ALB only has an HTTP listener, so you must either attach an ACM certificate to an HTTPS listener (requires a custom domain) or put CloudFront in front of the ALB before going live with M-Pesa production credentials. The callback path is always `/api/v1/invoices/payments/mpesa/callback`.
 
 > **Gotcha:** Always store secret values **without trailing whitespace or carriage returns**. Values stored with `\r` or `\n` (common when copy-pasting on Windows) cause `SsnEncryptionService` and JWT validation to crash at startup. Use `printf '%s' "<value>"` when updating via CLI, or trim carefully in the console before saving.
 
