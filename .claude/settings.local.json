@@ -21,7 +21,9 @@
       "Bash(docker context:*)",
       "Bash(powershell -Command \"Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue | Select-Object Name,Id\" 2>&1)",
       "Bash(echo \"exit: $?\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Skill(update-config)",
+      "WebFetch(domain:repo1.maven.org)"
     ]
   }
 }
