@@ -8,8 +8,4 @@ import java.util.UUID;
 
 public interface UserCassandraRepository extends ReactiveCassandraRepository<UserEntity, UUID> {
 
-    Mono<UserEntity> findByUsername(String username);
-    Mono<UserEntity> findByEmail(String email);
-    Mono<Boolean> existsByUsername(String username);
-    Mono<Boolean> existsByEmail(String email);
 }

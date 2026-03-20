@@ -219,6 +219,18 @@ CREATE TABLE IF NOT EXISTS rental_manager.mpesa_transactions (
     completed_at           timestamp
 );
 
+-- ── USER LOOKUP TABLES (Keyspaces-compatible alternative to secondary indexes) ─
+
+CREATE TABLE IF NOT EXISTS rental_manager.users_by_username (
+    username text PRIMARY KEY,
+    user_id  uuid
+);
+
+CREATE TABLE IF NOT EXISTS rental_manager.users_by_email (
+    email   text PRIMARY KEY,
+    user_id uuid
+);
+
 -- ── SETTINGS Bounded Context ──────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS rental_manager.user_settings (
