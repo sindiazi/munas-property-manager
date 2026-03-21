@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
 
@@ -22,8 +23,10 @@ public class UserEntity {
     private UUID id;
     private String username;
     private String email;
+    @Column("password_hash")
     private String passwordHash;
     private UserRole role;
     private boolean active;
+    @Column("created_at")
     private Instant createdAt;
 }
