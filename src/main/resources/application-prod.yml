@@ -7,6 +7,8 @@ spring:
     username: ${KEYSPACES_USERNAME}
     password: ${KEYSPACES_PASSWORD}
     schema-action: none                    # Keyspaces does not support auto-DDL
+    request:
+      consistency: LOCAL_QUORUM            # Required by Amazon Keyspaces
     ssl:
       enabled: true
   lifecycle:
