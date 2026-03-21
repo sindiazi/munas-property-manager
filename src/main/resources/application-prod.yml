@@ -17,6 +17,9 @@ spring:
 server:
   shutdown: graceful
 
+cors:
+  allowed-origins: ${FRONTEND_URL:https://munas-property-manager-ui.vercel.app}
+
 logging:
   level:
     com.example.rentalmanager: INFO
