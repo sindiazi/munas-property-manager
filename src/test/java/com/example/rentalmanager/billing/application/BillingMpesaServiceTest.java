@@ -18,6 +18,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -197,14 +198,16 @@ class BillingMpesaServiceTest {
     }
 
     @Test
-    void handleCallback_unknownCheckoutRequestId_returnsError() {
+    void handleCallback_unknownCheckoutRequestId_returnsErrorAfterRetries() {
         var cmd = new MpesaCallbackCommand("UNKNOWN_CK", "MR_X", 0, "OK",
                 "REC", BigDecimal.TEN, "254700000000", Instant.now());
 
         when(mpesaTransactionPort.findByCheckoutRequestId("UNKNOWN_CK"))
                 .thenReturn(Mono.empty());
 
-        StepVerifier.create(service.handleCallback(cmd))
+        // repeatWhenEmpty retries 3× with 500 ms delays — advance virtual time past all retries
+        StepVerifier.withVirtualTime(() -> service.handleCallback(cmd))
+                .thenAwait(Duration.ofSeconds(2))
                 .expectError(IllegalArgumentException.class)
                 .verify();
     }

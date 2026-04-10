@@ -53,8 +53,8 @@ public class MpesaController {
 
         return callbackUseCase.handleCallback(cmd)
                 .onErrorResume(e -> {
-                    log.warn("M-Pesa callback processing error (responding 200 to Daraja): {}",
-                            e.getMessage());
+                    log.error("M-Pesa callback processing failed for CheckoutRequestID '{}' (responding 200 to Daraja): {}",
+                            stkCallback.checkoutRequestId(), e.getMessage(), e);
                     return Mono.empty();
                 });
     }

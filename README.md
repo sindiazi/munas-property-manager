@@ -388,7 +388,7 @@ aws iam attach-user-policy \
 - **One non-terminal lease per unit**: Creating a lease is rejected if the unit already has a DRAFT or ACTIVE lease, enforcing the invariant that a unit can only be leased to one tenant at a time.
 - **Sealed domain events**: Prevents unauthorized event types; enables exhaustive `switch` matching.
 - **Events published post-persistence**: Application services publish events only after a successful write — ready for transactional outbox pattern.
-- **CQRS projections via event listeners**: Read-optimised Cassandra tables are maintained by `@EventListener` handlers reacting to domain events (fire-and-forget, eventual consistency).
+- **CQRS projections via event listeners**: Read-optimised Cassandra tables are maintained by `@EventListener` handlers reacting to domain events. Handlers return `Mono<Void>` so Spring (6.1+) subscribes on their behalf — no manual `.subscribe()` calls. Updates are eventually consistent by design.
 - **National ID encryption at rest**: Tenant National ID numbers are stored AES-256/CBC encrypted. A separate HMAC-SHA-256 hash column enables equality lookups without decryption. Lease creation accepts either a tenant UUID or a plain 9-digit National ID number.
 - **ArchUnit tests**: Architecture constraints (e.g. domain layer must not depend on infrastructure) are enforced at compile/test time.
 - **RFC 9457 error responses**: All exceptions are mapped to standardized `ProblemDetail` responses via a global handler.

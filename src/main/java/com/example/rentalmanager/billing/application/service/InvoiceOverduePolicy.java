@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
 
@@ -23,17 +24,22 @@ public class InvoiceOverduePolicy {
         var today = LocalDate.now();
         invoicePersistencePort.findByStatus(InvoiceStatus.PENDING)
                 .filter(inv -> inv.getDueDate().isBefore(today))
-                .doOnNext(inv -> {
+                .flatMap(inv -> {
                     try {
                         inv.markOverdue();
                         inv.getDomainEvents().forEach(eventPublisher::publish);
                         inv.clearDomainEvents();
                     } catch (Exception e) {
                         log.warn("Could not mark invoice {} as overdue: {}", inv.getId(), e.getMessage());
+                        return Mono.<Void>empty();
                     }
+                    return invoicePersistencePort.save(inv)
+                            .onErrorResume(e -> {
+                                log.error("Error saving overdue invoice {}: {}", inv.getId(), e.getMessage(), e);
+                                return Mono.empty();
+                            })
+                            .then();
                 })
-                .flatMap(invoicePersistencePort::save)
-                .doOnError(e -> log.error("Error in overdue invoice policy", e))
-                .subscribe();
+                .blockLast();
     }
 }

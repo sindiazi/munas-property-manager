@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.time.LocalDate;
 
@@ -30,9 +31,9 @@ import java.time.LocalDate;
  *   <li>{@code LeaseProjectionHandler} — updates the CQRS read projections.</li>
  * </ul>
  *
- * <p>The job runs at 01:00 every day (server local time). The pipeline is
- * fire-and-forget via {@code .subscribe()} — failures are logged per-lease
- * and do not abort processing of remaining leases.
+ * <p>The job runs at 01:00 every day (server local time). Individual lease
+ * failures are caught inside {@code flatMap} and logged, so one failure does
+ * not abort processing of remaining leases.
  */
 @Slf4j
 @Service
@@ -54,14 +55,16 @@ public class LeaseExpiryPolicy {
                             lease.getId().value(), lease.getUnitId(), lease.getTerm().endDate());
                     lease.expire();
                     return persistencePort.save(lease)
-                            .doOnSuccess(this::publishAndClear);
+                            .doOnSuccess(this::publishAndClear)
+                            .doOnSuccess(saved -> log.debug("[EXPIRY-POLICY] Expired lease {}", saved.getId().value()))
+                            .onErrorResume(e -> {
+                                log.error("[EXPIRY-POLICY] Failed to expire lease {}: {}",
+                                        lease.getId().value(), e.getMessage(), e);
+                                return Mono.empty();
+                            });
                 })
-                .doOnError(e -> log.error("[EXPIRY-POLICY] Unexpected error during expiry run: {}", e.getMessage()))
-                .subscribe(
-                        lease -> log.debug("[EXPIRY-POLICY] Expired lease {}", lease.getId().value()),
-                        e    -> log.error("[EXPIRY-POLICY] Failed to expire a lease", e),
-                        ()   -> log.info("[EXPIRY-POLICY] Expiry run complete")
-                );
+                .doOnComplete(() -> log.info("[EXPIRY-POLICY] Expiry run complete"))
+                .blockLast();
     }
 
     private void publishAndClear(Lease lease) {
