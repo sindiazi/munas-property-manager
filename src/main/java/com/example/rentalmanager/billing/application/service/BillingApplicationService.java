@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -126,10 +127,14 @@ public class BillingApplicationService
     @Override
     @Transactional
     public Mono<Void> handleCallback(MpesaCallbackCommand cmd) {
+        // Retry up to 3 times (500 ms apart) to handle the narrow window where Daraja
+        // sends the callback before our mpesaTransactionPort.save() has committed.
         return mpesaTransactionPort.findByCheckoutRequestId(cmd.checkoutRequestId())
+                .repeatWhenEmpty(3, repeat -> repeat.delayElements(Duration.ofMillis(500)))
+                .next()
                 .switchIfEmpty(Mono.defer(() -> {
                     log.warn("M-Pesa callback received for unknown CheckoutRequestID '{}' — " +
-                             "transaction row not yet persisted; Daraja will retry",
+                             "transaction row not found after retries; Daraja will retry",
                              cmd.checkoutRequestId());
                     return Mono.error(new IllegalArgumentException(
                             "Unknown M-Pesa transaction: " + cmd.checkoutRequestId()));

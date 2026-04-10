@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
@@ -15,18 +16,19 @@ public class InvoiceGenerationHandler {
     private final InvoiceGenerationPolicy invoiceGenerationPolicy;
 
     @EventListener
-    public void onLeaseActivated(LeaseActivatedEvent event) {
+    public Mono<Void> onLeaseActivated(LeaseActivatedEvent event) {
         log.info("LeaseActivatedEvent received for lease {} — generating RENT invoice", event.leaseId());
 
         var dueDate = event.startDate().withDayOfMonth(1);
 
-        invoiceGenerationPolicy.generateRentInvoice(
+        return invoiceGenerationPolicy.generateRentInvoice(
                         event.leaseId().value(),
                         event.tenantId(),
                         event.monthlyRent(),
                         dueDate)
-                .doOnError(e -> log.error("Failed to generate RENT invoice for lease {}: {}",
-                        event.leaseId(), e.getMessage()))
-                .subscribe();
+                .onErrorResume(e -> {
+                    log.error("Failed to generate RENT invoice for lease {}: {}", event.leaseId(), e.getMessage(), e);
+                    return Mono.empty();
+                });
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 import java.time.Instant;
 
@@ -35,16 +36,16 @@ public class DataInitializer {
     private final Environment                env;
 
     @EventListener(ApplicationReadyEvent.class)
-    public void seedDefaultAdmin() {
+    public Mono<Void> seedDefaultAdmin() {
         String username = env.getProperty("ADMIN_USERNAME", "admin");
         String email    = env.getProperty("ADMIN_EMAIL",    "admin@example.com");
         String password = env.getProperty("ADMIN_PASSWORD", "Admin@1234");
 
-        userPersistencePort.existsByUsername(username)
+        return userPersistencePort.existsByUsername(username)
                 .flatMap(exists -> {
                     if (exists) {
                         log.debug("Admin user '{}' already exists — skipping seed.", username);
-                        return reactor.core.publisher.Mono.empty();
+                        return Mono.empty();
                     }
                     log.info("Seeding default admin user '{}'", username);
                     return createUserUseCase.create(
@@ -56,7 +57,7 @@ public class DataInitializer {
                             });
                 })
                 .doOnError(e -> log.error("Failed to seed admin user: {}", e.getMessage()))
-                .onErrorComplete()
-                .subscribe();
+                .onErrorResume(e -> Mono.empty())
+                .then();
     }
 }

@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
+import reactor.core.publisher.Mono;
 
 /**
  * Keeps {@code PropertyUnit} status in sync with the Lease lifecycle.
@@ -26,9 +27,9 @@ import org.springframework.stereotype.Component;
  *   <li>No cross-domain method calls; coupling is event-based only.</li>
  * </ol>
  *
- * <p>Updates are fire-and-forget ({@code .subscribe()}) because unit status
- * is eventually consistent by design. If the update fails, the error is logged
- * and can be retried via event replay.
+ * <p>Unit status is eventually consistent by design — if an update fails the error
+ * is logged and can be retried via event replay. Listener methods return
+ * {@code Mono<Void>} so Spring subscribes on their behalf.
  */
 @Slf4j
 @Component
@@ -38,33 +39,35 @@ public class UnitStatusSyncHandler {
     private final PropertyUnitR2dbcRepository unitRepo;
 
     @EventListener
-    public void on(LeaseActivatedEvent event) {
+    public Mono<Void> on(LeaseActivatedEvent event) {
         log.debug("[UNIT-SYNC] LeaseActivated → marking unit {} OCCUPIED", event.unitId());
-        updateStatus(event.unitId(), UnitStatus.OCCUPIED);
+        return updateStatus(event.unitId(), UnitStatus.OCCUPIED);
     }
 
     @EventListener
-    public void on(LeaseTerminatedEvent event) {
+    public Mono<Void> on(LeaseTerminatedEvent event) {
         log.debug("[UNIT-SYNC] LeaseTerminated → marking unit {} AVAILABLE", event.unitId());
-        updateStatus(event.unitId(), UnitStatus.AVAILABLE);
+        return updateStatus(event.unitId(), UnitStatus.AVAILABLE);
     }
 
     @EventListener
-    public void on(LeaseExpiredEvent event) {
+    public Mono<Void> on(LeaseExpiredEvent event) {
         log.debug("[UNIT-SYNC] LeaseExpired → marking unit {} AVAILABLE", event.unitId());
-        updateStatus(event.unitId(), UnitStatus.AVAILABLE);
+        return updateStatus(event.unitId(), UnitStatus.AVAILABLE);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    private void updateStatus(java.util.UUID unitId, UnitStatus status) {
-        unitRepo.findById(unitId)
+    private Mono<Void> updateStatus(java.util.UUID unitId, UnitStatus status) {
+        return unitRepo.findById(unitId)
                 .flatMap(entity -> {
                     entity.setStatus(status);
                     return unitRepo.save(entity);
                 })
-                .doOnError(e -> log.error("[UNIT-SYNC] Failed to update status for unit {}: {}",
-                        unitId, e.getMessage()))
-                .subscribe();
+                .onErrorResume(e -> {
+                    log.error("[UNIT-SYNC] Failed to update status for unit {}: {}", unitId, e.getMessage(), e);
+                    return Mono.empty();
+                })
+                .then();
     }
 }

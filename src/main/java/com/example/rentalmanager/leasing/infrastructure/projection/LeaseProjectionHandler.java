@@ -14,6 +14,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+
 /**
  * Subscribes to lease domain events and updates the CQRS read-model projection tables:
  * <ul>
@@ -21,9 +22,9 @@ import reactor.core.publisher.Mono;
  *   <li>{@code unit_rental_history} — full rental timeline per unit</li>
  * </ul>
  *
- * <p>Projection updates are fire-and-forget ({@code .subscribe()}) because
- * projections are eventually consistent by design. A projection rebuild can be
- * triggered by replaying events or re-running the data seeder.
+ * <p>Projection updates are eventually consistent by design. A projection rebuild can be
+ * triggered by replaying events or re-running the data seeder. Listener methods return
+ * {@code Mono<Void>} so Spring subscribes on their behalf — no explicit {@code .subscribe()} needed.
  */
 @Slf4j
 @Component
@@ -36,7 +37,7 @@ public class LeaseProjectionHandler {
     // ── Lease Activated ────────────────────────────────────────────────────
 
     @EventListener
-    public void on(LeaseActivatedEvent event) {
+    public Mono<Void> on(LeaseActivatedEvent event) {
         log.debug("[PROJECTION] LeaseActivated → updating occupancy + history for unit {}",
                 event.unitId());
 
@@ -62,15 +63,17 @@ public class LeaseProjectionHandler {
                 .status("ACTIVE")
                 .build();
 
-        Mono.when(occupancyRepo.save(occupancy), historyRepo.save(history))
-                .doOnError(e -> log.error("[PROJECTION] Failed to update on LeaseActivated: {}", e.getMessage()))
-                .subscribe();
+        return Mono.when(occupancyRepo.save(occupancy), historyRepo.save(history))
+                .onErrorResume(e -> {
+                    log.error("[PROJECTION] Failed to update on LeaseActivated: {}", e.getMessage(), e);
+                    return Mono.empty();
+                });
     }
 
     // ── Lease Terminated ───────────────────────────────────────────────────
 
     @EventListener
-    public void on(LeaseTerminatedEvent event) {
+    public Mono<Void> on(LeaseTerminatedEvent event) {
         log.debug("[PROJECTION] LeaseTerminated → clearing occupancy, updating history for unit {}",
                 event.unitId());
 
@@ -85,15 +88,17 @@ public class LeaseProjectionHandler {
                 .status("TERMINATED")
                 .build();
 
-        Mono.when(occupancyRepo.deleteById(event.tenantId()), historyRepo.save(history))
-                .doOnError(e -> log.error("[PROJECTION] Failed to update on LeaseTerminated: {}", e.getMessage()))
-                .subscribe();
+        return Mono.when(occupancyRepo.deleteById(event.tenantId()), historyRepo.save(history))
+                .onErrorResume(e -> {
+                    log.error("[PROJECTION] Failed to update on LeaseTerminated: {}", e.getMessage(), e);
+                    return Mono.empty();
+                });
     }
 
     // ── Lease Expired ──────────────────────────────────────────────────────
 
     @EventListener
-    public void on(LeaseExpiredEvent event) {
+    public Mono<Void> on(LeaseExpiredEvent event) {
         log.debug("[PROJECTION] LeaseExpired → clearing occupancy, updating history for unit {}",
                 event.unitId());
 
@@ -108,8 +113,10 @@ public class LeaseProjectionHandler {
                 .status("EXPIRED")
                 .build();
 
-        Mono.when(occupancyRepo.deleteById(event.tenantId()), historyRepo.save(history))
-                .doOnError(e -> log.error("[PROJECTION] Failed to update on LeaseExpired: {}", e.getMessage()))
-                .subscribe();
+        return Mono.when(occupancyRepo.deleteById(event.tenantId()), historyRepo.save(history))
+                .onErrorResume(e -> {
+                    log.error("[PROJECTION] Failed to update on LeaseExpired: {}", e.getMessage(), e);
+                    return Mono.empty();
+                });
     }
 }
