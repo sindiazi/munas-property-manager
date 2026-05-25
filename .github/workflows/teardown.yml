@@ -1,0 +1,190 @@
+name: Teardown — Decommission All Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type DESTROY to confirm teardown of all production resources"
+        required: true
+      delete_backend:
+        description: "Also delete Terraform state backend (S3 bucket + DynamoDB lock table)?"
+        type: boolean
+        default: false
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  TF_WORKING_DIR: terraform
+  ECR_REPO: munas-property-manager-prod
+  ECS_CLUSTER: munas-property-manager-prod-cluster
+  ECS_SERVICE: munas-property-manager-prod-service
+  SECRETS_PREFIX: munas-property-manager/prod
+  STATE_BUCKET: munas-property-manager-tfstate
+  LOCK_TABLE: munas-property-manager-tf-lock
+
+# ── Safety gate ────────────────────────────────────────────────────────────────
+jobs:
+  validate:
+    name: Validate Confirmation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check confirmation token
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "DESTROY" ]; then
+            echo "::error::Confirmation must be exactly 'DESTROY'. Got: '${{ github.event.inputs.confirm }}'"
+            exit 1
+          fi
+          echo "Confirmed. Proceeding with teardown."
+
+  # ── Main teardown ────────────────────────────────────────────────────────────
+  teardown:
+    name: Teardown
+    runs-on: ubuntu-latest
+    needs: validate
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.OIDC_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ── 1. Scale ECS to zero ────────────────────────────────────────────────
+      # Drains tasks before Terraform destroy runs, avoiding a long wait on service deletion.
+      - name: Scale ECS service to 0
+        run: |
+          echo "Scaling $ECS_SERVICE to 0..."
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
+            --desired-count 0 \
+            --region "$AWS_REGION" 2>/dev/null || echo "Service not found or already scaled down — continuing."
+
+          echo "Waiting for tasks to drain..."
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION" 2>/dev/null || echo "Service already gone — continuing."
+
+      # ── 2. Purge ECR images ─────────────────────────────────────────────────
+      # aws_ecr_repository has no force_delete=true, so terraform destroy fails
+      # if the repo is non-empty. Delete all images (tagged + untagged) first.
+      - name: Delete all ECR images
+        run: |
+          IMAGE_IDS=$(aws ecr list-images \
+            --repository-name "$ECR_REPO" \
+            --region "$AWS_REGION" \
+            --query 'imageIds' \
+            --output json 2>/dev/null || echo "[]")
+
+          COUNT=$(echo "$IMAGE_IDS" | jq 'length')
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No images found in $ECR_REPO — nothing to delete."
+          else
+            echo "Deleting $COUNT image(s) from $ECR_REPO..."
+            aws ecr batch-delete-image \
+              --repository-name "$ECR_REPO" \
+              --image-ids "$IMAGE_IDS" \
+              --region "$AWS_REGION"
+            echo "Images deleted."
+          fi
+
+      # ── 3. Terraform destroy ────────────────────────────────────────────────
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "~1.7"
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform destroy -auto-approve
+
+      # ── 4. Force-delete Secrets Manager secrets ─────────────────────────────
+      # terraform destroy schedules secrets for deletion with a 30-day recovery
+      # window. This step force-deletes them immediately so they don't linger.
+      - name: Force-delete Secrets Manager secrets
+        run: |
+          SECRETS=$(aws secretsmanager list-secrets \
+            --region "$AWS_REGION" \
+            --query "SecretList[?starts_with(Name, '${SECRETS_PREFIX}')].Name" \
+            --output text 2>/dev/null || true)
+
+          if [ -z "$SECRETS" ]; then
+            echo "No secrets found under prefix $SECRETS_PREFIX — already gone."
+          else
+            for SECRET in $SECRETS; do
+              echo "Force-deleting: $SECRET"
+              aws secretsmanager delete-secret \
+                --secret-id "$SECRET" \
+                --force-delete-without-recovery \
+                --region "$AWS_REGION" 2>/dev/null || echo "$SECRET already deleted — skipping."
+            done
+          fi
+
+      # ── 5. (Optional) Delete Terraform state backend ────────────────────────
+      # The S3 bucket and DynamoDB table are NOT managed by Terraform — they are
+      # the backend itself. Enable this only when the state is no longer needed.
+      - name: Delete Terraform state backend (S3 + DynamoDB)
+        if: github.event.inputs.delete_backend == 'true'
+        run: |
+          echo "=== Deleting state bucket: $STATE_BUCKET ==="
+
+          # S3 versioning is enabled on the state bucket; delete all versions
+          # and delete markers in batches of 1000 before removing the bucket.
+          while true; do
+            BATCH=$(aws s3api list-object-versions \
+              --bucket "$STATE_BUCKET" \
+              --max-items 1000 \
+              --region "$AWS_REGION" \
+              --query '{
+                Objects: (Versions[].{Key:Key,VersionId:VersionId} + DeleteMarkers[].{Key:Key,VersionId:VersionId}),
+                Quiet: `true`
+              }' \
+              --output json 2>/dev/null || echo '{"Objects":[],"Quiet":true}')
+
+            COUNT=$(echo "$BATCH" | jq '.Objects | length')
+            if [ "$COUNT" -eq 0 ]; then
+              echo "All objects and versions removed."
+              break
+            fi
+
+            echo "Deleting batch of $COUNT object version(s)..."
+            aws s3api delete-objects \
+              --bucket "$STATE_BUCKET" \
+              --delete "$BATCH" \
+              --region "$AWS_REGION"
+          done
+
+          aws s3 rb "s3://$STATE_BUCKET" --region "$AWS_REGION" \
+            && echo "Bucket $STATE_BUCKET deleted." \
+            || echo "Bucket $STATE_BUCKET already gone — skipping."
+
+          echo "=== Deleting DynamoDB lock table: $LOCK_TABLE ==="
+          aws dynamodb delete-table \
+            --table-name "$LOCK_TABLE" \
+            --region "$AWS_REGION" \
+            && echo "Table $LOCK_TABLE deleted." \
+            || echo "Table $LOCK_TABLE already gone — skipping."
+
+      # ── 6. Summary ──────────────────────────────────────────────────────────
+      - name: Teardown summary
+        run: |
+          echo "::notice::All Terraform-managed production infrastructure has been decommissioned."
+          echo ""
+          echo "Resources NOT managed by Terraform — delete manually if no longer needed:"
+          echo "  • GitHub Actions OIDC IAM role  →  ${{ secrets.OIDC_ROLE_ARN }}"
+          echo "  • Keyspaces IAM user             →  munas-keyspaces-migration (IAM console)"
+          if [ "${{ github.event.inputs.delete_backend }}" != "true" ]; then
+            echo "  • Terraform state S3 bucket      →  $STATE_BUCKET"
+            echo "  • Terraform lock DynamoDB table  →  $LOCK_TABLE"
+            echo "  (Re-run with 'delete_backend = true' to remove these too)"
+          fi
