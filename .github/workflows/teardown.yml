@@ -94,7 +94,51 @@ jobs:
             echo "Images deleted."
           fi
 
-      # ── 3. Terraform destroy ────────────────────────────────────────────────
+      # ── 3. Drop all Keyspaces tables ────────────────────────────────────────
+      # Amazon Keyspaces requires all tables to be deleted before the keyspace
+      # can be deleted. Tables are created by Spring Boot (not Terraform), so
+      # terraform destroy times out waiting for the keyspace to disappear.
+      - name: Drop all Keyspaces tables
+        run: |
+          KEYSPACE="rental_manager"
+
+          TABLES=$(aws keyspaces list-tables \
+            --keyspace-name "$KEYSPACE" \
+            --region "$AWS_REGION" \
+            --query 'tables[].tableName' \
+            --output text 2>/dev/null || true)
+
+          if [ -z "$TABLES" ]; then
+            echo "No tables found in keyspace $KEYSPACE (already gone or empty)."
+          else
+            for TABLE in $TABLES; do
+              echo "Deleting table: $KEYSPACE.$TABLE"
+              aws keyspaces delete-table \
+                --keyspace-name "$KEYSPACE" \
+                --table-name "$TABLE" \
+                --region "$AWS_REGION" 2>/dev/null || echo "$TABLE already deleted — skipping."
+            done
+
+            echo "Waiting for all tables to finish deleting..."
+            for TABLE in $TABLES; do
+              for i in $(seq 1 30); do
+                STATUS=$(aws keyspaces get-table \
+                  --keyspace-name "$KEYSPACE" \
+                  --table-name "$TABLE" \
+                  --region "$AWS_REGION" \
+                  --query 'status' \
+                  --output text 2>/dev/null || echo "DELETED")
+                if [ "$STATUS" = "DELETED" ] || [ "$STATUS" = "None" ]; then
+                  echo "$TABLE: gone."
+                  break
+                fi
+                echo "$TABLE: $STATUS — waiting (attempt $i/30)..."
+                sleep 10
+              done
+            done
+          fi
+
+      # ── 4. Terraform destroy ────────────────────────────────────────────────
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
