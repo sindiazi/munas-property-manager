@@ -33,7 +33,7 @@
         <testcontainers.version>1.20.4</testcontainers.version>
         <archunit.version>1.4.1</archunit.version>
         <openapi.version>3.0.2</openapi.version>
-        <jjwt.version>0.12.6</jjwt.version>
+        <jjwt.version>0.13.0</jjwt.version>
     </properties>
 
     <!-- ===================================================================
