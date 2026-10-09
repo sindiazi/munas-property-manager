@@ -8,7 +8,7 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 /** Spring Data Cassandra repository for {@link PropertyUnitJpaEntity}. */
-public interface PropertyUnitR2dbcRepository extends ReactiveCassandraRepository<PropertyUnitJpaEntity, UUID> {
+public interface PropertyUnitCassandraRepository extends ReactiveCassandraRepository<PropertyUnitJpaEntity, UUID> {
 
     Flux<PropertyUnitJpaEntity> findByPropertyId(UUID propertyId);
 

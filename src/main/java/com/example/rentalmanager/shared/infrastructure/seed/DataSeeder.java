@@ -5,7 +5,7 @@ import com.example.rentalmanager.leasing.infrastructure.persistence.entity.Lease
 import com.example.rentalmanager.leasing.infrastructure.persistence.entity.TenantOccupiedUnitEntity;
 import com.example.rentalmanager.leasing.infrastructure.persistence.entity.UnitRentalHistoryEntity;
 import com.example.rentalmanager.leasing.infrastructure.persistence.entity.UnitRentalHistoryKey;
-import com.example.rentalmanager.leasing.infrastructure.persistence.repository.LeaseR2dbcRepository;
+import com.example.rentalmanager.leasing.infrastructure.persistence.repository.LeaseCassandraRepository;
 import com.example.rentalmanager.leasing.infrastructure.persistence.repository.TenantOccupiedUnitRepository;
 import com.example.rentalmanager.leasing.infrastructure.persistence.repository.UnitRentalHistoryRepository;
 import com.example.rentalmanager.maintenance.domain.valueobject.MaintenancePriority;
@@ -16,7 +16,7 @@ import com.example.rentalmanager.maintenance.infrastructure.persistence.entity.M
 import com.example.rentalmanager.maintenance.infrastructure.persistence.entity.MaintenanceRequestJpaEntity;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceCategoryRepository;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceIssueTemplateRepository;
-import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestR2dbcRepository;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestCassandraRepository;
 import com.example.rentalmanager.billing.domain.valueobject.InvoiceStatus;
 import com.example.rentalmanager.billing.domain.valueobject.InvoiceType;
 import com.example.rentalmanager.billing.domain.valueobject.PaymentMethod;
@@ -29,12 +29,12 @@ import com.example.rentalmanager.property.domain.valueobject.PropertyType;
 import com.example.rentalmanager.property.domain.valueobject.UnitStatus;
 import com.example.rentalmanager.property.infrastructure.persistence.entity.PropertyJpaEntity;
 import com.example.rentalmanager.property.infrastructure.persistence.entity.PropertyUnitJpaEntity;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyR2dbcRepository;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitR2dbcRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyCassandraRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitCassandraRepository;
 import com.example.rentalmanager.shared.infrastructure.security.SsnEncryptionService;
 import com.example.rentalmanager.tenant.domain.valueobject.TenantStatus;
 import com.example.rentalmanager.tenant.infrastructure.persistence.entity.TenantJpaEntity;
-import com.example.rentalmanager.tenant.infrastructure.persistence.repository.TenantR2dbcRepository;
+import com.example.rentalmanager.tenant.infrastructure.persistence.repository.TenantCassandraRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -89,13 +89,13 @@ public class DataSeeder implements ApplicationRunner {
     // Deterministic RNG so re-runs produce identical data
     private final Random rng = new Random(42L);
 
-    private final PropertyR2dbcRepository           propertyRepo;
-    private final PropertyUnitR2dbcRepository       unitRepo;
-    private final TenantR2dbcRepository             tenantRepo;
-    private final LeaseR2dbcRepository              leaseRepo;
-    private final InvoiceCassandraRepository         invoiceRepo;
-    private final PaymentCassandraRepository         paymentRepo;
-    private final MaintenanceRequestR2dbcRepository maintenanceRepo;
+    private final PropertyCassandraRepository           propertyRepo;
+    private final PropertyUnitCassandraRepository       unitRepo;
+    private final TenantCassandraRepository             tenantRepo;
+    private final LeaseCassandraRepository              leaseRepo;
+    private final InvoiceCassandraRepository            invoiceRepo;
+    private final PaymentCassandraRepository            paymentRepo;
+    private final MaintenanceRequestCassandraRepository maintenanceRepo;
     private final MaintenanceCategoryRepository      categoryRepo;
     private final MaintenanceIssueTemplateRepository issueTemplateRepo;
     private final TenantOccupiedUnitRepository      occupancyRepo;

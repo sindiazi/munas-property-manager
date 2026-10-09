@@ -4,7 +4,7 @@ import com.example.rentalmanager.tenant.application.port.output.TenantPersistenc
 import com.example.rentalmanager.tenant.domain.aggregate.Tenant;
 import com.example.rentalmanager.tenant.domain.valueobject.TenantId;
 import com.example.rentalmanager.tenant.infrastructure.persistence.mapper.TenantPersistenceMapper;
-import com.example.rentalmanager.tenant.infrastructure.persistence.repository.TenantR2dbcRepository;
+import com.example.rentalmanager.tenant.infrastructure.persistence.repository.TenantCassandraRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -15,7 +15,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class TenantPersistenceAdapter implements TenantPersistencePort {
 
-    private final TenantR2dbcRepository   repository;
+    private final TenantCassandraRepository repository;
     private final TenantPersistenceMapper mapper;
 
     @Override public Mono<Tenant>  save(Tenant tenant)              { return repository.save(mapper.toEntity(tenant)).map(mapper::toDomain); }

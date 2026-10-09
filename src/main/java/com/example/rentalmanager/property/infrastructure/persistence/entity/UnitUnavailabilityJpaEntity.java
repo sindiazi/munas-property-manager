@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.Indexed;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
@@ -24,10 +25,14 @@ public class UnitUnavailabilityJpaEntity {
     private UUID id;
 
     @Indexed
+    @Column("unit_id")
     private UUID unitId;
 
     private String    reason;
+    @Column("start_date")
     private LocalDate startDate;
+    @Column("end_date")
     private LocalDate endDate;      // null = open-ended
+    @Column("created_at")
     private Instant   createdAt;
 }

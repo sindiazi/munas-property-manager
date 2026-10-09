@@ -8,7 +8,7 @@ import reactor.core.publisher.Flux;
 import java.util.UUID;
 
 /** Spring Data Cassandra repository for {@link MaintenanceRequestJpaEntity}. */
-public interface MaintenanceRequestR2dbcRepository
+public interface MaintenanceRequestCassandraRepository
         extends ReactiveCassandraRepository<MaintenanceRequestJpaEntity, UUID> {
 
     Flux<MaintenanceRequestJpaEntity> findByPropertyId(UUID propertyId);

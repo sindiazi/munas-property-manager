@@ -23,15 +23,21 @@ public class TenantJpaEntity {
 
     @PrimaryKey
     private UUID id;
+    @Column("first_name")
     private String firstName;
+    @Column("last_name")
     private String lastName;
+    @Column("national_id")
     private String nationalId;
     @Indexed
     private String email;
+    @Column("phone_number")
     private String phoneNumber;
+    @Column("credit_score")
     private int creditScore;
     @Indexed
     private TenantStatus status;
+    @Column("registered_at")
     private Instant registeredAt;
     /** AES-256/CBC encrypted National ID number: base64( IV[16] || ciphertext ). */
     @Column("national_id_no")

@@ -7,16 +7,16 @@ import com.example.rentalmanager.billing.infrastructure.persistence.entity.Invoi
 import com.example.rentalmanager.billing.infrastructure.persistence.entity.PaymentEntity;
 import com.example.rentalmanager.billing.infrastructure.persistence.repository.InvoiceCassandraRepository;
 import com.example.rentalmanager.billing.infrastructure.persistence.repository.PaymentCassandraRepository;
-import com.example.rentalmanager.leasing.infrastructure.persistence.repository.LeaseR2dbcRepository;
+import com.example.rentalmanager.leasing.infrastructure.persistence.repository.LeaseCassandraRepository;
 import com.example.rentalmanager.leasing.infrastructure.persistence.repository.TenantOccupiedUnitRepository;
 import com.example.rentalmanager.leasing.infrastructure.persistence.repository.UnitRentalHistoryRepository;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceCategoryRepository;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceIssueTemplateRepository;
-import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestR2dbcRepository;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyR2dbcRepository;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitR2dbcRepository;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestCassandraRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyCassandraRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitCassandraRepository;
 import com.example.rentalmanager.shared.infrastructure.security.SsnEncryptionService;
-import com.example.rentalmanager.tenant.infrastructure.persistence.repository.TenantR2dbcRepository;
+import com.example.rentalmanager.tenant.infrastructure.persistence.repository.TenantCassandraRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -51,13 +51,13 @@ class DataSeederPaymentRulesTest {
     @BeforeEach
     void setUp() {
         seeder = new DataSeeder(
-                mock(PropertyR2dbcRepository.class),
-                mock(PropertyUnitR2dbcRepository.class),
-                mock(TenantR2dbcRepository.class),
-                mock(LeaseR2dbcRepository.class),
+                mock(PropertyCassandraRepository.class),
+                mock(PropertyUnitCassandraRepository.class),
+                mock(TenantCassandraRepository.class),
+                mock(LeaseCassandraRepository.class),
                 mock(InvoiceCassandraRepository.class),
                 mock(PaymentCassandraRepository.class),
-                mock(MaintenanceRequestR2dbcRepository.class),
+                mock(MaintenanceRequestCassandraRepository.class),
                 mock(MaintenanceCategoryRepository.class),
                 mock(MaintenanceIssueTemplateRepository.class),
                 mock(TenantOccupiedUnitRepository.class),

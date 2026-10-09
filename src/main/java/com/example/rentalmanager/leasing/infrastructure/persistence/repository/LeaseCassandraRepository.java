@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 /** Spring Data Cassandra repository for {@link LeaseJpaEntity}. */
-public interface LeaseR2dbcRepository extends ReactiveCassandraRepository<LeaseJpaEntity, UUID> {
+public interface LeaseCassandraRepository extends ReactiveCassandraRepository<LeaseJpaEntity, UUID> {
 
     Flux<LeaseJpaEntity> findByTenantId(UUID tenantId);
 

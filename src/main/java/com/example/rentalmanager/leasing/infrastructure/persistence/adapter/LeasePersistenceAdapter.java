@@ -5,7 +5,7 @@ import com.example.rentalmanager.leasing.domain.aggregate.Lease;
 import com.example.rentalmanager.leasing.domain.valueobject.LeaseId;
 import com.example.rentalmanager.leasing.domain.valueobject.LeaseStatus;
 import com.example.rentalmanager.leasing.infrastructure.persistence.mapper.LeasePersistenceMapper;
-import com.example.rentalmanager.leasing.infrastructure.persistence.repository.LeaseR2dbcRepository;
+import com.example.rentalmanager.leasing.infrastructure.persistence.repository.LeaseCassandraRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -13,12 +13,12 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
-/** Secondary adapter implementing {@link LeasePersistencePort} with Spring Data R2DBC. */
+/** Secondary adapter implementing {@link LeasePersistencePort} with Spring Data Cassandra. */
 @Component
 @RequiredArgsConstructor
 public class LeasePersistenceAdapter implements LeasePersistencePort {
 
-    private final LeaseR2dbcRepository   repository;
+    private final LeaseCassandraRepository repository;
     private final LeasePersistenceMapper mapper;
 
     @Override public Mono<Lease>  save(Lease lease)                   { return repository.save(mapper.toEntity(lease)).map(mapper::toDomain); }

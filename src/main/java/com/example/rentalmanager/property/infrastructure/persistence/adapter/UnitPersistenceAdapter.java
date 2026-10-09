@@ -4,7 +4,7 @@ import com.example.rentalmanager.property.application.port.output.UnitPersistenc
 import com.example.rentalmanager.property.domain.aggregate.PropertyUnit;
 import com.example.rentalmanager.property.domain.valueobject.UnitStatus;
 import com.example.rentalmanager.property.infrastructure.persistence.mapper.PropertyPersistenceMapper;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitR2dbcRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitCassandraRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
@@ -16,7 +16,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class UnitPersistenceAdapter implements UnitPersistencePort {
 
-    private final PropertyUnitR2dbcRepository unitRepo;
+    private final PropertyUnitCassandraRepository unitRepo;
     private final PropertyPersistenceMapper   mapper;
 
     @Override

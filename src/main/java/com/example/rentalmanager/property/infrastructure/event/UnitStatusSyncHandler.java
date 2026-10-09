@@ -4,7 +4,7 @@ import com.example.rentalmanager.leasing.domain.event.LeaseActivatedEvent;
 import com.example.rentalmanager.leasing.domain.event.LeaseExpiredEvent;
 import com.example.rentalmanager.leasing.domain.event.LeaseTerminatedEvent;
 import com.example.rentalmanager.property.domain.valueobject.UnitStatus;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitR2dbcRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitCassandraRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class UnitStatusSyncHandler {
 
-    private final PropertyUnitR2dbcRepository unitRepo;
+    private final PropertyUnitCassandraRepository unitRepo;
 
     @EventListener
     public Mono<Void> on(LeaseActivatedEvent event) {

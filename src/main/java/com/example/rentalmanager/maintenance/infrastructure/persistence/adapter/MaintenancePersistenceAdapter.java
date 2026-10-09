@@ -5,7 +5,7 @@ import com.example.rentalmanager.maintenance.domain.aggregate.MaintenanceRequest
 import com.example.rentalmanager.maintenance.domain.valueobject.MaintenanceStatus;
 import com.example.rentalmanager.maintenance.domain.valueobject.RequestId;
 import com.example.rentalmanager.maintenance.infrastructure.persistence.mapper.MaintenancePersistenceMapper;
-import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestR2dbcRepository;
+import com.example.rentalmanager.maintenance.infrastructure.persistence.repository.MaintenanceRequestCassandraRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -13,12 +13,12 @@ import reactor.core.publisher.Mono;
 
 import java.util.UUID;
 
-/** Secondary adapter implementing {@link MaintenancePersistencePort} with R2DBC. */
+/** Secondary adapter implementing {@link MaintenancePersistencePort} with Spring Data Cassandra. */
 @Component
 @RequiredArgsConstructor
 public class MaintenancePersistenceAdapter implements MaintenancePersistencePort {
 
-    private final MaintenanceRequestR2dbcRepository repository;
+    private final MaintenanceRequestCassandraRepository repository;
     private final MaintenancePersistenceMapper       mapper;
 
     @Override public Mono<MaintenanceRequest> save(MaintenanceRequest r)             { return repository.save(mapper.toEntity(r)).map(mapper::toDomain); }

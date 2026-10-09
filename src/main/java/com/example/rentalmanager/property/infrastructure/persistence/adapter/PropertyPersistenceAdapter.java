@@ -5,8 +5,8 @@ import com.example.rentalmanager.property.domain.aggregate.Property;
 import com.example.rentalmanager.property.domain.valueobject.OwnerId;
 import com.example.rentalmanager.property.domain.valueobject.PropertyId;
 import com.example.rentalmanager.property.infrastructure.persistence.mapper.PropertyPersistenceMapper;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyR2dbcRepository;
-import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitR2dbcRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyCassandraRepository;
+import com.example.rentalmanager.property.infrastructure.persistence.repository.PropertyUnitCassandraRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
@@ -14,18 +14,17 @@ import reactor.core.publisher.Mono;
 
 /**
  * Secondary (driven) adapter — implements {@link PropertyPersistencePort} using
- * Spring Data R2DBC.
+ * Spring Data Cassandra.
  *
  * <p>The two-table strategy (properties + property_units) requires orchestrating
- * multiple reactive streams. All saves are performed transactionally by the
- * application service's {@code @Transactional} boundary.
+ * multiple reactive streams.
  */
 @Component
 @RequiredArgsConstructor
 public class PropertyPersistenceAdapter implements PropertyPersistencePort {
 
-    private final PropertyR2dbcRepository     propertyRepo;
-    private final PropertyUnitR2dbcRepository unitRepo;
+    private final PropertyCassandraRepository     propertyRepo;
+    private final PropertyUnitCassandraRepository unitRepo;
     private final PropertyPersistenceMapper   mapper;
 
     @Override

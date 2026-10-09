@@ -6,11 +6,8 @@ import reactor.core.publisher.Flux;
 
 import java.util.UUID;
 
-/**
- * Spring Data Cassandra repository for {@link PropertyJpaEntity}.
- * Framework provides the implementation at runtime.
- */
-public interface PropertyR2dbcRepository extends ReactiveCassandraRepository<PropertyJpaEntity, UUID> {
+/** Spring Data Cassandra repository for {@link PropertyJpaEntity}. */
+public interface PropertyCassandraRepository extends ReactiveCassandraRepository<PropertyJpaEntity, UUID> {
 
     Flux<PropertyJpaEntity> findByOwnerId(UUID ownerId);
 }

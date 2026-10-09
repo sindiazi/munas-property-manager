@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.cassandra.core.mapping.Column;
 import org.springframework.data.cassandra.core.mapping.Indexed;
 import org.springframework.data.cassandra.core.mapping.PrimaryKey;
 import org.springframework.data.cassandra.core.mapping.Table;
@@ -29,13 +30,16 @@ public class PropertyJpaEntity {
     @PrimaryKey
     private UUID id;
     @Indexed
+    @Column("owner_id")
     private UUID ownerId;
     private String name;
     private String street;
     private String city;
     private String state;
+    @Column("zip_code")
     private String zipCode;
     private String country;
     private PropertyType type;
+    @Column("created_at")
     private Instant createdAt;
 }

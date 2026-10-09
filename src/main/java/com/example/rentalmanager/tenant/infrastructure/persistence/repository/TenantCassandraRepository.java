@@ -7,7 +7,7 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 /** Spring Data Cassandra repository for {@link TenantJpaEntity}. */
-public interface TenantR2dbcRepository extends ReactiveCassandraRepository<TenantJpaEntity, UUID> {
+public interface TenantCassandraRepository extends ReactiveCassandraRepository<TenantJpaEntity, UUID> {
 
     Mono<TenantJpaEntity> findByEmail(String email);
 
